@@ -1,6 +1,3 @@
-# Gerekli kütüphanelerin yüklenmesi
-
-
 import os
 import json
 import warnings
@@ -43,8 +40,8 @@ TARAMA_YAPILACAK_PERIYOTLAR = {
 
 # --- STRATEJİ AYARLARI (RSI 68-75 & YUKARI İVME - HACİMSİZ) ---
 RSI_PERIOD = 14
-RSI_MIN = 68             # Alt sınır
-RSI_MAX = 75             # Üst sınır
+RSI_MIN = 68               # Alt sınır
+RSI_MAX = 75               # Üst sınır
 
 # Risk / Ödül Seviyeleri
 RISK_REWARD_TP1 = 1.5
