@@ -1,27 +1,39 @@
-name: BIST Alarm Botu
+name: BIST Otomatik Sinyal Tarayici
 
 on:
   schedule:
-    # Her saatin 17. dakikasında çalışır (Kuyruğa takılmayı önler)
-    - cron: '17 * * * *'
-  workflow_dispatch: # Manuel olarak da test edebilmen için
+    # Her saatin 11. ve 40. dakikasında çalışır
+    - cron: '11,40 * * * *'
+  workflow_dispatch: # Manuel olarak test edebilmen için
 
 jobs:
-  run-scanner:
+  tarama_calistir:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
-      - name: Kodları Depodan Çek
+      - name: Depodaki Kodları Çek (Checkout)
         uses: actions/checkout@v4
 
-      - name: Python Ortamını Kur
+      - name: Python Kurulumu
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
       - name: Gerekli Kütüphaneleri Yükle
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas numpy requests
+          pip install yfinance pandas openpyxl requests tqdm numpy
 
-      - name: Botu Çalıştır
-        run: python bot.py  # Python dosyanın adı neyse buraya onu yazabilirsin (örn: main.py)
+      - name: Python Tarama Scriptini Çalıştır
+        run: python scanner.py
+
+      - name: Değişen Dosyaları GitHub Reposuna Kaydet / Push Et
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "action@github.com"
+          git add gonderilen_sinyaller.json CCI_Trend_Hacim_Tarama_Sonuclari.xlsx || true
+          git commit -m "Otomatik tarama: Sinyal hafızası ve Excel güncellendi [skip ci]" || true
+          git push || true
