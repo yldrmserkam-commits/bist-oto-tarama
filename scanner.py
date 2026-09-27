@@ -1,5 +1,5 @@
 # Gerekli kütüphanelerin yüklenmesi
-!pip install yfinance pandas openpyxl requests tqdm -q
+
 
 import os
 import json
