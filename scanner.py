@@ -1,3 +1,13 @@
+import subprocess
+import sys
+
+# Eksik kütüphaneleri GitHub Actions ortamında otomatik kurar (Hata almayı önler)
+for paket in ['yfinance', 'pandas', 'numpy', 'requests', 'openpyxl', 'tqdm']:
+    try:
+        __import__(paket)
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", paket])
+
 import os
 import json
 import warnings
