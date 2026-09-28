@@ -41,14 +41,25 @@ def sinyalleri_kaydet(state):
         print(f'Durum dosyası kaydedilemedi: {e}')
 
 
-# --- PERİYOT AYARLARI ---
+# --- PERİYOT AYARLARI (15 DK VE 30 DK EKLENDİ) ---
 TARAMA_YAPILACAK_PERIYOTLAR = {
+    '15 Dakikalık': True,
     '30 Dakikalık': True,
     '1 Saatlik': True,
     '4 Saatlik': True,
     'Günlük': True,
     'Haftalık': True,
     'Aylık': True,
+}
+
+PERIYOT_AYARLARI = {
+    '15 Dakikalık': {'interval': '15m', 'period': '1mo', 'resample_rule': None},
+    '30 Dakikalık': {'interval': '30m', 'period': '2mo', 'resample_rule': None},
+    '1 Saatlik': {'interval': '60m', 'period': '3mo', 'resample_rule': None},
+    '4 Saatlik': {'interval': '60m', 'period': '6mo', 'resample_rule': '4h'},
+    'Günlük': {'interval': '1d', 'period': '2y', 'resample_rule': None},
+    'Haftalık': {'interval': '1wk', 'period': '5y', 'resample_rule': None},
+    'Aylık': {'interval': '1mo', 'period': '10y', 'resample_rule': None},
 }
 
 # --- STRATEJİ AYARLARI (RSI 67-74) ---
@@ -156,15 +167,6 @@ def guclu_yukselis_kontrol(df):
 
     return False, 0, 0, 0, 0, 0, 0, 0
 
-
-PERIYOT_AYARLARI = {
-    '30 Dakikalık': {'interval': '30m', 'period': '2mo', 'resample_rule': None},
-    '1 Saatlik': {'interval': '60m', 'period': '3mo', 'resample_rule': None},
-    '4 Saatlik': {'interval': '60m', 'period': '6mo', 'resample_rule': '4h'},
-    'Günlük': {'interval': '1d', 'period': '2y', 'resample_rule': None},
-    'Haftalık': {'interval': '1wk', 'period': '5y', 'resample_rule': None},
-    'Aylık': {'interval': '1mo', 'period': '10y', 'resample_rule': None},
-}
 
 ham_tickers = [
     'A1CAP',
