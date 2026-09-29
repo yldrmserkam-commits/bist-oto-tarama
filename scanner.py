@@ -146,7 +146,7 @@ def hesapla_obv(df):
     return obv
 
 TELEGRAM_AKTIF = True
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8911263447:AAHoyIaowzRMAD0SYrZqKQnx3BGv4Sv3dLs')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8488715417:AAEPtM07hXwFa5NXl7xwwrM0PX30Xd_VzSE')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '889982961')
 
 def telegram_mesaj_gonder(mesaj):
