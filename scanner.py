@@ -146,15 +146,15 @@ def hesapla_obv(df):
     return obv
 
 TELEGRAM_AKTIF = True
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TELEGRAM_BOT_TOKEN = '8488715417:AAEPtM07hXwFa5NXl7xwwrM0PX30Xd_VzSE'
+TELEGRAM_CHAT_ID = '889982961'
 
 def telegram_mesaj_gonder(mesaj):
     if not TELEGRAM_AKTIF:
-        print("ℹ️ Telegram kapalı (TELEGRAM_AKTIF = False)")
+        print("ℹ️️ Telegram kapalı (TELEGRAM_AKTIF = False)")
         return
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("🚨 KRİTİK HATA: TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID GitHub Secrets'da tanımlı değil!")
+        print("🚨 KRİTİK HATA: TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID tanımlı değil!")
         return
     
     try:
