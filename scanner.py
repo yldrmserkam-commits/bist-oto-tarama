@@ -146,11 +146,14 @@ def hesapla_obv(df):
     return obv
 
 TELEGRAM_AKTIF = True
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8488715417:AAEPtM07hXwFa5NXl7xwwrM0PX30Xd_VzSE')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '889982961')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 def telegram_mesaj_gonder(mesaj):
     if not TELEGRAM_AKTIF:
+        return
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("⚠️ HATA: Telegram Token veya Chat ID bulunamadı! GitHub Secrets ayarlarını kontrol et.")
         return
     try:
         url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
@@ -160,9 +163,13 @@ def telegram_mesaj_gonder(mesaj):
             'parse_mode': 'Markdown',
             'disable_web_page_preview': True
         }
-        requests.post(url, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=10)
+        if response.status_code != 200:
+            print(f"❌ Telegram Gönderim Hatası: {response.text}")
+        else:
+            print("✅ Telegram mesajı başarıyla gönderildi!")
     except Exception as e:
-        print(f'Telegram mesajı gönderilemedi: {e}')
+        print(f'❌ Telegram bağlantı istisnası: {e}')
 
 results = []
 gonderilenler = sinyalleri_yukle()
