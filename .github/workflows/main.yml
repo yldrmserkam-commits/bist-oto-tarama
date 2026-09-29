@@ -2,8 +2,8 @@ name: BIST Scanner Automation
 
 on:
   schedule:
-    # TSİ (UTC+3) her saatin 3, 18, 33 ve 48. dakikalarında çalışır
-    - cron: '3,18,33,48 * * * *'
+    # Türkiye Saati (TSİ = UTC+3) ile her saatin 11. ve 40. dakikasında çalışır (UTC karşılığı: 41 ve 10)
+    - cron: '41,10 * * * *'
   workflow_dispatch: # Manuel tetikleme butonu
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python tarama.py # Python dosyanın adı farklıysa burayı düzenle
+        run: python scanner.py
 
       - name: Değişiklikleri Kaydet ve Push Et (JSON / Excel için)
         run: |
