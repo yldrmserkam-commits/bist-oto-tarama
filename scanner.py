@@ -21,17 +21,19 @@ import yfinance as yf
 
 warnings.filterwarnings('ignore')
 
-STATE_FILE = 'gonderilen_bist_rsi_28_32_sinyalleri.json'
+STATE_FILE = 'gonderilen_smi_eksi40_sinyalleri.json'
 
 # --- PERİYOT AYARLARI ---
 TARAMA_30DK = True
 TARAMA_1SAATLIK = True
 TARAMA_4SAATLIK = True
 
-# --- RSI PARAMETRELERİ ---
-RSI_ALT_SINIR = 28.0
-RSI_UST_SINIR = 32.0
-RSI_PERIYOT = 14
+# --- STOCHASTIC MOMENTUM INDEX (SMI) PARAMETRELERİ ---
+SMI_K_PERIYOT = 10  # %K Periyodu (Standart: 10)
+SMI_D_PERIYOT = 3  # %D Yumuşatma (Standart: 3)
+SMI_YUMUSATMA_1 = 3  # İlk EMA Periyodu
+SMI_YUMUSATMA_2 = 3  # İkinci EMA Periyodu
+SMI_ESIK = -40.0  # -40 Altındaki hisseleri arar
 
 
 def sinyalleri_yukle():
@@ -56,15 +58,33 @@ def sinyalleri_kaydet(state):
     print(f'Durum dosyası kaydedilemedi: {e}')
 
 
-# TradingView Standardına Uygun RSI (Wilder's Smoothing)
-def rsi_hesapla(series, period=14):
-  delta = series.diff()
-  gain = delta.where(delta > 0, 0.0)
-  loss = -delta.where(delta < 0, 0.0)
-  avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-  avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
-  rs = avg_gain / avg_loss.replace(0, np.nan)
-  return 100 - (100 / (1 + rs))
+# TradingView Standartlarında Stochastic Momentum Index (SMI) Hesabı
+def smi_hesapla(df, k_length=10, smooth1=3, smooth2=3):
+  hh = df['High'].rolling(window=k_length).max()
+  ll = df['Low'].rolling(window=k_length).min()
+
+  center = (hh + ll) / 2
+  rel_diff = df['Close'] - center
+  diff_range = hh - ll
+
+  # Çift EMA Yumuşatması
+  numerator = (
+      rel_diff.ewm(span=smooth1, adjust=False)
+      .mean()
+      .ewm(span=smooth2, adjust=False)
+      .mean()
+  )
+
+  denominator = (
+      diff_range.ewm(span=smooth1, adjust=False)
+      .mean()
+      .ewm(span=smooth2, adjust=False)
+      .mean()
+      / 2
+  )
+
+  smi = 100 * (numerator / denominator.replace(0, np.nan))
+  return smi
 
 
 TELEGRAM_AKTIF = True
@@ -152,9 +172,8 @@ ticker_symbols = sorted(list(set(ham_tickers)))
 results = []
 gonderilenler = sinyalleri_yukle()
 
-print('🔍 BİST RSI 28-32 Yukarı Dönüş Taraması Başlatılıyor...')
+print('🔍 BİST Stochastic Momentum Index (SMI) < -40 Taraması Başlatılıyor...')
 
-# 30 Dakikalık veri indirme (30m için period 30d yeterlidir)
 try:
   data_30m = yf.download(
       tickers=ticker_symbols,
@@ -186,7 +205,7 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
     if df_30m.empty or len(df_30m) < 30:
       continue
 
-    # 1 Saatlik Veri Oluşturma
+    # 1 Saatlik Veri
     df_1h = (
         df_30m.resample('1h')
         .agg({
@@ -199,7 +218,7 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
         .dropna()
     )
 
-    # 4 Saatlik Veri Oluşturma
+    # 4 Saatlik Veri
     df_4h = (
         df_30m.resample('4h')
         .agg({
@@ -212,24 +231,23 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
         .dropna()
     )
 
-    def rsi_donus_var_mi(df):
-      df['RSI'] = rsi_hesapla(df['Close'], RSI_PERIYOT)
+    def smi_filtrele(df):
+      df['SMI'] = smi_hesapla(
+          df, SMI_K_PERIYOT, SMI_YUMUSATMA_1, SMI_YUMUSATMA_2
+      )
 
-      if len(df) < RSI_PERIYOT + 2:
-        return False, 0, 0
+      if len(df) < SMI_K_PERIYOT + 5:
+        return False, 0
 
-      rsi_curr = float(df['RSI'].iloc[-1])
-      rsi_prev = float(df['RSI'].iloc[-2])
+      smi_curr = float(df['SMI'].iloc[-1])
 
-      if np.isnan(rsi_curr) or np.isnan(rsi_prev):
-        return False, 0, 0
+      if np.isnan(smi_curr):
+        return False, 0
 
-      # TEK ŞART: RSI 28 ile 32 arasında olacak VE önceki muma göre YUKARI yönelecek
-      rsi_kosulu = (
-          RSI_ALT_SINIR <= rsi_curr <= RSI_UST_SINIR
-      ) and (rsi_curr > rsi_prev)
+      # TEK ŞART: SMI değerinin -40'ın altında olması
+      sinyal = smi_curr < SMI_ESIK
 
-      return rsi_kosulu, rsi_curr, rsi_prev
+      return sinyal, smi_curr
 
     periyotlar = []
     if TARAMA_30DK:
@@ -240,21 +258,20 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
       periyotlar.append(('4 Saatlik', df_4h, '4H'))
 
     for periyot_adi, df_periyot, periyot_kod in periyotlar:
-      sinyal_var, rsi_val, rsi_prev_val = rsi_donus_var_mi(df_periyot)
+      sinyal_var, smi_val = smi_filtrele(df_periyot)
 
       if sinyal_var:
         son_fiyat = float(df_periyot['Close'].iloc[-1])
         mum_zaman = pd.to_datetime(df_periyot.index[-1])
         mum_zaman_str = mum_zaman.strftime('%Y%m%d_%H%M')
 
-        sinyal_id = f'{ticker}_{periyot_kod}_RSI28_32_{mum_zaman_str}'
+        sinyal_id = f'{ticker}_{periyot_kod}_SMI_EKSI40_{mum_zaman_str}'
 
         bilgi = {
             'Hisse': ticker,
             'Son Fiyat': round(son_fiyat, 2),
             'Periyot': periyot_adi,
-            'Anlık RSI': round(rsi_val, 2),
-            'Önceki RSI': round(rsi_prev_val, 2),
+            'SMI': round(smi_val, 2),
             'Tarih': str(mum_zaman),
         }
         results.append(bilgi)
@@ -262,11 +279,11 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
         if sinyal_id not in gonderilenler:
           tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
           msg = (
-              f'📈 *BİST RSI 28-32 DİP DÖNÜŞ SİNYALİ*\n'
+              f'📉 *BİST STOCHASTIC MOMENTUM INDEX (SMI) < -40 SİNYALİ*\n'
               f'*Hisse:* `{ticker}`\n'
               f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
               f'📊 *Periyot:* `{periyot_adi}`\n\n'
-              f'📉 *RSI (14):* `{rsi_val:.2f}` (Önceki: `{rsi_prev_val:.2f}`) ↗️\n\n'
+              f'🌊 *SMI Değeri:* `{smi_val:.2f}` (< -40)\n\n'
               f'🔗 [TradingView Grafiği Aç]({tv_link})'
           )
           telegram_mesaj_gonder(msg)
@@ -280,10 +297,10 @@ sinyalleri_kaydet(gonderilenler)
 
 if results:
   df_results = pd.DataFrame(results)
-  excel_filename = 'BIST_RSI_28_32_Donus_Sonuclari.xlsx'
+  excel_filename = 'BIST_SMI_Eksi40_Sonuclari.xlsx'
   df_results.to_excel(excel_filename, index=False)
   print(
-      f'\n✅ Tarama tamamlandı! Toplam {len(results)} adet RSI 28-32 arası yukarıkıvrılan hisse bulundu.'
+      f'\n✅ Tarama tamamlandı! Toplam {len(results)} adet SMI değeri -40 altı olan hisse bulundu.'
   )
 else:
-  print('\n⚠️ Kriterleri karşılayan hisse bulunamadı (RSI 28-32 arası ve yukarı kıvrılan).')
+  print('\n⚠️ Kriterleri karşılayan hisse bulunamadı (SMI < -40).')
