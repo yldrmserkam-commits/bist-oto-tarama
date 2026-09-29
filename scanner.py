@@ -153,8 +153,7 @@ def telegram_mesaj_gonder(mesaj):
     if not TELEGRAM_AKTIF:
         return
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ HATA: Telegram Token veya Chat ID bulunamadı! GitHub Secrets ayarlarını kontrol et.")
-        return
+        raise ValueError("⚠️ HATA: Telegram Token veya Chat ID bulunamadı! GitHub Secrets ayarlarına eklediğinden emin ol.")
     try:
         url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
         payload = {
@@ -165,11 +164,12 @@ def telegram_mesaj_gonder(mesaj):
         }
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code != 200:
-            print(f"❌ Telegram Gönderim Hatası: {response.text}")
+            raise RuntimeError(f"❌ Telegram Gönderim Hatası (Kod {response.status_code}): {response.text}")
         else:
             print("✅ Telegram mesajı başarıyla gönderildi!")
     except Exception as e:
         print(f'❌ Telegram bağlantı istisnası: {e}')
+        raise e  # Hatayı yukarı fırlatarak Actions'ın kırmızı vermesini ve hatayı net görmeni sağlıyoruz
 
 results = []
 gonderilenler = sinyalleri_yukle()
@@ -237,26 +237,21 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
 
             c_curr = df['Close'].iloc[-1]
 
-            # 1. EMA5, EMA8'i yukarı kessin
             ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
             ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
             ema_kesisim = (ema5_c > ema8_c) and (ema5_p <= ema8_p)
 
-            # 2. Fiyat SMA(20) üstünde olsun
             sma20_c = df['SMA20'].iloc[-1]
             fiyat_sma_ustu = c_curr > sma20_c
 
-            # 3. DI+ x DI- Yukarı kessin
             di_p_c, di_p_p = df['DI_PLUS'].iloc[-1], df['DI_PLUS'].iloc[-2]
             di_m_c, di_m_p = df['DI_MINUS'].iloc[-1], df['DI_MINUS'].iloc[-2]
             di_kesisim = (di_p_c > di_m_c) and (di_p_p <= di_m_p)
 
-            # 4. RSI 48 ve üstünde olsun, ivmesi yukarı yönlü olsun
             rsi_c = df['RSI'].iloc[-1]
             rsi_p = df['RSI'].iloc[-2]
             rsi_ok = (rsi_c >= 48) and (rsi_c > rsi_p)
 
-            # 5. OBV yukarı yönlü olsun
             obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
             obv_ok = obv_c > obv_p
 
@@ -321,8 +316,8 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
                     gonderilenler[sinyal_id] = True
                     time.sleep(0.02)
 
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ İşlem Hatası [{ticker_symbol}]: {e}")
 
 sinyalleri_kaydet(gonderilenler)
 
