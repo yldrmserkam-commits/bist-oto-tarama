@@ -1,39 +1,29 @@
-name: BIST Scanner Automation
+name: BIST 15m-30m Strateji Tarama
 
 on:
   schedule:
-    # Türkiye Saati (TSİ = UTC+3) ile her saatin 11. ve 40. dakikasında çalışır (UTC karşılığı: 41 ve 10)
-    - cron: '41,10 * * * *'
-  workflow_dispatch: # Manuel tetikleme butonu
+    # Her saatin 03, 17, 32 ve 47. dakikalarında çalışır
+    - cron: '3,17,32,47 * * * *'
+  workflow_dispatch: # Manuel olarak da tetiklenebilir
 
 jobs:
-  run-scanner:
+  tarama_calistir:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repoyu Klonla
-        uses: actions/checkout@v4
+    - name: Repo'yu Kopyala
+      uses: actions/checkout@v4
 
-      - name: Python Kurulumu
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - name: Python Kurulumu
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: Gerekli Kütüphaneleri Yükle
-        run: |
-          python -m pip install --upgrade pip
-          pip install yfinance pandas numpy requests openpyxl tqdm
+    - name: Bağımlılıkları ve Kütüphaneleri Yükle
+      run: |
+        python -m pip install --upgrade pip
+        pip install yfinance pandas numpy requests openpyxl tqdm
 
-      - name: Tarama Kodunu Çalıştır
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python scanner.py
-
-      - name: Değişiklikleri Kaydet ve Push Et (JSON / Excel için)
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Auto update scan results [skip ci]" || exit 0
-          git push
+    - name: Tarama Scriptini Çalıştır
+      run: |
+        python tarama.py
