@@ -41,12 +41,12 @@ def sinyalleri_kaydet(state):
         print(f'Durum dosyası kaydedilemedi: {e}')
 
 
-# --- PERİYOT AYARLARI (15 DK VE 30 DK EKLENDİ) ---
+# --- PERİYOT AYARLARI (GÜNLÜK, HAFTALIK, AYLIK AKTİF) ---
 TARAMA_YAPILACAK_PERIYOTLAR = {
-    '15 Dakikalık': True,
-    '30 Dakikalık': True,
-    '1 Saatlik': True,
-    '4 Saatlik': True,
+    '15 Dakikalık': False,
+    '30 Dakikalık': False,
+    '1 Saatlik': False,
+    '4 Saatlik': False,
     'Günlük': True,
     'Haftalık': True,
     'Aylık': True,
@@ -62,14 +62,24 @@ PERIYOT_AYARLARI = {
     'Aylık': {'interval': '1mo', 'period': '10y', 'resample_rule': None},
 }
 
-# --- STRATEJİ AYARLARI (RSI 67-74) ---
-RSI_PERIOD = 14
-RSI_MIN = 67
-RSI_MAX = 74
+# --- STRATEJİ VE İNDİKATÖR PARAMETRELERİ ---
+CCI_PERIYOT = 20
+RSI_PERIYOT = 14
+EMA_TREND = 20
+HACIM_ORT_PERIYOT = 10
+
+# RSI Ayarları (Sadece 67 - 72 Arası)
+RSI_MIN = 67.0
+RSI_MAX = 72.0
+
+# Filtre Aktiflikleri
+HACIM_FILTRESI_AKTIF = True
+TREND_FILTRESI_AKTIF = True
+ICHIMOKU_FILTRESI_AKTIF = True
 
 RISK_REWARD_TP1 = 1.5
 RISK_REWARD_TP2 = 2.5
-RISK_REWARD_TP3 = 3.5
+RISK_REWARD_TP3 = 4.0
 
 # Telegram Bildirim Ayarları
 TELEGRAM_AKTIF = True
@@ -98,74 +108,122 @@ def telegram_mesaj_gonder(mesaj):
 def rsi_hesapla(series, period=14):
     """Wilder's Smoothing ile RSI hesaplar"""
     delta = series.diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
+    gain = delta.where(delta > 0, 0.0)
+    loss = -delta.where(delta < 0, 0.0)
 
-    avg_gain = gain.ewm(
-        alpha=1 / period, min_periods=period, adjust=False
-    ).mean()
-    avg_loss = loss.ewm(
-        alpha=1 / period, min_periods=period, adjust=False
-    ).mean()
+    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
 
-    rs = avg_gain / avg_loss
+    rs = avg_gain / avg_loss.replace(0, np.nan)
     return 100 - (100 / (1 + rs))
 
 
-def guclu_yukselis_kontrol(df):
-    if len(df) < 36:
-        return False, 0, 0, 0, 0, 0, 0, 0
+def cci_hesapla(df, period=20):
+    tp = (df['High'] + df['Low'] + df['Close']) / 3
+    sma_tp = tp.rolling(window=period).mean()
+    mad = tp.rolling(window=period).apply(
+        lambda x: np.abs(x - x.mean()).mean(), raw=True
+    )
+    mad = mad.replace(0, 0.0001)
+    return (tp - sma_tp) / (0.015 * mad)
 
-    df['RSI'] = rsi_hesapla(df['Close'], period=RSI_PERIOD)
-    df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
 
-    if len(df) >= 50:
-        df['EMA50'] = df['Close'].ewm(span=50, adjust=False).mean()
-        ema50_check = df['EMA20'].iloc[-1] > df['EMA50'].iloc[-1]
-    else:
-        ema50_check = True
+def gelişmiş_strateji_kontrol(df):
+    """Tüm indikatör filtrelerini kontrol eden gelişmiş strateji fonksiyonu"""
+    if len(df) < max(CCI_PERIYOT + 5, 78):
+        return False, {}, ''
 
-    curr = df.iloc[-1]
-    prev = df.iloc[-2]
+    # --- İNDİKATÖR HESAPLAMALARI ---
+    df['EMA20'] = df['Close'].ewm(span=EMA_TREND, adjust=False).mean()
+    df['CCI'] = cci_hesapla(df, CCI_PERIYOT)
+    df['RSI'] = rsi_hesapla(df['Close'], RSI_PERIYOT)
 
-    close_val = curr['Close']
-    high_val = curr['High']
-    low_val = curr['Low']
-    curr_rsi = curr['RSI']
-    prev_rsi = prev['RSI']
-    curr_vol = curr['Volume']
-    ema20 = curr['EMA20']
+    # Ichimoku Kijun-sen (52 periyot)
+    kijun_sen = (
+        df['High'].rolling(window=52).max() + df['Low'].rolling(window=52).min()
+    ) / 2
 
-    if pd.isna(curr_rsi) or pd.isna(prev_rsi):
-        return False, 0, 0, 0, 0, 0, 0, 0
+    curr_close = float(df['Close'].iloc[-1])
+    curr_vol = float(df['Volume'].iloc[-1])
 
-    # RSI Koşulu (67 - 74 Arası + Yukarı İvme)
-    if not (RSI_MIN <= curr_rsi <= RSI_MAX and curr_rsi > prev_rsi):
-        return False, 0, 0, 0, 0, 0, 0, 0
+    if curr_vol <= 0:
+        return False, {}, ''
 
-    # Trend Koşulu
-    if not (close_val > ema20 and ema50_check):
-        return False, 0, 0, 0, 0, 0, 0, 0
+    ema20_curr = float(df['EMA20'].iloc[-1])
+    curr_cci = float(df['CCI'].iloc[-1])
+    prev_cci = float(df['CCI'].iloc[-2])
 
-    # Mum Kapanış Pozisyonu (%65 üstü)
-    candle_range = high_val - low_val
-    if candle_range > 0:
-        close_position = (close_val - low_val) / candle_range
-        if close_position < 0.65:
-            return False, 0, 0, 0, 0, 0, 0, 0
+    curr_rsi = float(df['RSI'].iloc[-1])
+    prev_rsi = float(df['RSI'].iloc[-2])
+    prev_prev_rsi = float(df['RSI'].iloc[-3])
 
-    # Stop-Loss Seviyesi (Son 15 mumun en düşüğü)
-    lookback = min(15, len(df))
-    sl_level = float(np.min(df['Low'].values[-lookback:]))
-    risk = close_val - sl_level
+    # 1. CCI KOŞULU (>-100 ve yukarı yönlü ivme)
+    if not (curr_cci > -100 and curr_cci > prev_cci):
+        return False, {}, ''
 
-    if risk > 0:
-        tp1 = close_val + (risk * RISK_REWARD_TP1)
-        tp2 = close_val + (risk * RISK_REWARD_TP2)
-        tp3 = close_val + (risk * RISK_REWARD_TP3)
-        return True, close_val, sl_level, tp1, tp2, tp3, curr_rsi, curr_vol
+    # 2. RSI KOŞULU (Sadece 67 - 72 Arası + Yükseliş İvmesi)
+    rsi_ivme_yukari = (curr_rsi > prev_rsi) and (prev_rsi > prev_prev_rsi)
+    if not (RSI_MIN <= curr_rsi <= RSI_MAX and rsi_ivme_yukari):
+        return False, {}, ''
 
-    return False, 0, 0, 0, 0, 0, 0, 0
+    sinyal_turu = f'RSI ({int(RSI_MIN)}-{int(RSI_MAX)}) Güçlü Trend'
+
+    # 3. TREND FİLTRESİ (EMA 20)
+    if TREND_FILTRESI_AKTIF and (curr_close < ema20_curr):
+        return False, {}, ''
+
+    # 4. ICHIMOKU FİLTRESİ
+    if ICHIMOKU_FILTRESI_AKTIF:
+        curr_kijun = float(kijun_sen.iloc[-1])
+        fiyat_kriteri = (curr_kijun < curr_close) and (
+            curr_close <= curr_kijun * 1.10
+        )
+
+        if len(df) >= 78:
+            gecmis_kijun = float(kijun_sen.iloc[-26])
+            chikou_kijun_kosulu = (
+                gecmis_kijun * 0.98 <= curr_close <= gecmis_kijun * 1.015
+            )
+        else:
+            chikou_kijun_kosulu = True
+
+        if not (fiyat_kriteri and chikou_kijun_kosulu):
+            return False, {}, ''
+
+    # 5. HACİM FİLTRESİ
+    vol_sma = df['Volume'].rolling(window=HACIM_ORT_PERIYOT).mean()
+    vol_sma_curr = float(vol_sma.iloc[-1])
+    if HACIM_FILTRESI_AKTIF and (curr_vol <= vol_sma_curr):
+        return False, {}, ''
+
+    hacim_oran = round(curr_vol / (vol_sma_curr + 1e-5), 2)
+
+    # --- ENTRY, STOP LOSS VE TARGET HESAPLARI ---
+    entry_fiyat = curr_close
+    son_dusuk = float(df['Low'].iloc[-5:].min())
+    stop_loss = son_dusuk * 0.992  # %0.8 tolerans payı
+
+    risk_marji = entry_fiyat - stop_loss
+    if risk_marji <= 0:
+        stop_loss = entry_fiyat * 0.97
+        risk_marji = entry_fiyat - stop_loss
+
+    tp1 = entry_fiyat + (risk_marji * RISK_REWARD_TP1)
+    tp2 = entry_fiyat + (risk_marji * RISK_REWARD_TP2)
+    tp3 = entry_fiyat + (risk_marji * RISK_REWARD_TP3)
+
+    hesaplanan_veriler = {
+        'entry': entry_fiyat,
+        'sl': stop_loss,
+        'tp1': tp1,
+        'tp2': tp2,
+        'tp3': tp3,
+        'rsi': curr_rsi,
+        'cci': curr_cci,
+        'hacim_oran': hacim_oran,
+    }
+
+    return True, hesaplanan_veriler, sinyal_turu
 
 
 ham_tickers = [
@@ -455,8 +513,10 @@ for periyot_adi, aktif_mi in TARAMA_YAPILACAK_PERIYOTLAR.items():
             else:
                 df = data.copy().dropna(how='all')
 
-            if df.empty or len(df) < 35:
+            if df.empty or len(df) < 52:
                 continue
+
+            df = df[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
 
             if ayar['resample_rule']:
                 df = (
@@ -471,23 +531,24 @@ for periyot_adi, aktif_mi in TARAMA_YAPILACAK_PERIYOTLAR.items():
                     .dropna()
                 )
 
-            is_valid, entry, sl, tp1, tp2, tp3, rsi_val, _ = (
-                guclu_yukselis_kontrol(df)
-            )
+            is_valid, veri, sinyal_turu = gelişmiş_strateji_kontrol(df)
 
             if is_valid:
-                mum_tarihi = str(df.index[-1].strftime('%Y-%m-%d %H:%M'))
-                sinyal_id = f'{ticker}_{periyot_adi}_{df.index[-1].strftime("%Y-%m-%d_%H%M")}'
+                mum_tarihi = str(df.index[-1].strftime('%Y-%m-%d'))
+                sinyal_id = f'{ticker}_{periyot_adi}_{sinyal_turu}_{df.index[-1].strftime("%Y%m%d")}'
 
                 bilgi = {
                     'Zaman Dilimi': periyot_adi,
                     'Hisse': ticker,
-                    'Giriş (ENTRY)': round(entry, 2),
-                    'RSI (14)': round(rsi_val, 2),
-                    'Stop (SL)': round(sl, 2),
-                    'TP1': round(tp1, 2),
-                    'TP2': round(tp2, 2),
-                    'TP3': round(tp3, 2),
+                    'Sinyal Türü': sinyal_turu,
+                    'Giriş (ENTRY)': round(veri['entry'], 2),
+                    'RSI': round(veri['rsi'], 2),
+                    'CCI': round(veri['cci'], 2),
+                    'Hacim/Ort': veri['hacim_oran'],
+                    'Stop (SL)': round(veri['sl'], 2),
+                    'TP1': round(veri['tp1'], 2),
+                    'TP2': round(veri['tp2'], 2),
+                    'TP3': round(veri['tp3'], 2),
                     'Tarih': mum_tarihi,
                 }
                 results.append(bilgi)
@@ -495,16 +556,16 @@ for periyot_adi, aktif_mi in TARAMA_YAPILACAK_PERIYOTLAR.items():
                 if sinyal_id not in gonderilenler:
                     tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
                     msg = (
-                        f'🔥 *YENİ RSI KESİŞİM SİNYALİ*\n\n'
-                        f'📌 *Hisse:* `{ticker}`\n'
-                        f'⏱ *Periyot:* {periyot_adi}\n'
-                        f'📈 *RSI:* `{rsi_val:.2f}` (İvmede)\n\n'
-                        f'🔹 *ENTRY:* `{entry:.2f}`\n'
-                        f'🔻 *SL:* `{sl:.2f}`\n\n'
-                        f'🎯 *TP1:* `{tp1:.2f}`\n'
-                        f'🎯 *TP2:* `{tp2:.2f}`\n'
-                        f'🎯 *TP3:* `{tp3:.2f}`\n\n'
-                        f'[TradingView Grafiği Aç]({tv_link})'
+                        f'🔥 *BIST GÜÇLÜ TREND SİNYALİ*\n\n'
+                        f'📌 *Hisse:* `{ticker}` | *Periyot:* {periyot_adi}\n'
+                        f'📈 *RSI:* `{veri["rsi"]:.2f}` (67-72 Aralığında İvmede)\n'
+                        f'📊 *CCI:* `{veri["cci"]:.2f}` | *Hacim:* `{veri["hacim_oran"]}x` Katı\n\n'
+                        f'🔵 *ENTRY:* `{veri["entry"]:.2f}`\n'
+                        f'🔴 *SL (Stop):* `{veri["sl"]:.2f}`\n\n'
+                        f'🎯 *TP1:* `{veri["tp1"]:.2f}`\n'
+                        f'🎯 *TP2:* `{veri["tp2"]:.2f}`\n'
+                        f'🎯 *TP3:* `{veri["tp3"]:.2f}`\n\n'
+                        f'🔗 [TradingView Grafiği Aç]({tv_link})'
                     )
                     telegram_mesaj_gonder(msg)
                     gonderilenler[sinyal_id] = True
@@ -518,8 +579,13 @@ sinyalleri_kaydet(gonderilenler)
 # Excel Çıktısı
 if results:
     df_results = pd.DataFrame(results)
-    excel_filename = 'RSI_Tarama_Sonuclari.xlsx'
+    df_results = df_results.sort_values(
+        by=['Zaman Dilimi', 'Hisse']
+    ).reset_index(drop=True)
+    excel_filename = 'BIST_Gundelik_Tarama_Sonuclari.xlsx'
     df_results.to_excel(excel_filename, index=False)
-    print(f'\n✅ Tarama tamamlandı! Toplam {len(results)} hisse bulundu.')
+    print(
+        f'\n✅ Tarama tamamlandı! Toplam {len(results)} hisse filtrelere uydu ve kaydedildi.'
+    )
 else:
     print('\n⚠️ Kriterlere uyan hisse bulunamadı.')
