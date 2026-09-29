@@ -23,6 +23,10 @@ warnings.filterwarnings('ignore')
 
 STATE_FILE = 'gonderilen_wavetrend_rsi_sinyalleri.json'
 
+# --- PERİYOT VE FİLTRE AYARLARI ---
+TARAMA_1SAATLIK = True  # 1 Saatlik Tarama
+TARAMA_4SAATLIK = True  # 4 Saatlik Tarama
+
 
 def sinyalleri_yukle():
     if os.path.exists(STATE_FILE):
@@ -57,7 +61,6 @@ def rsi_hesapla(series, period=14):
 
 
 def wavetrend_hesapla(df, n1=10, n2=21):
-    """TradingView WaveTrend (VT Cross) Hesaplaması"""
     ap = (df['High'] + df['Low'] + df['Close']) / 3
     esa = ap.ewm(span=n1, adjust=False).mean()
     d = (ap - esa).abs().ewm(span=n1, adjust=False).mean()
@@ -67,7 +70,7 @@ def wavetrend_hesapla(df, n1=10, n2=21):
     return wt1, wt2
 
 
-# --- GÜNCELLENMİŞ TELEGRAM AYARLARI ---
+# --- TELEGRAM AYARLARI ---
 TELEGRAM_AKTIF = True
 TELEGRAM_BOT_TOKEN = os.getenv(
     'TELEGRAM_BOT_TOKEN', '8911263447:AAHoyIaowzRMAD0SYrZqKQnx3BGv4Sv3dLs'
@@ -153,9 +156,7 @@ ticker_symbols = sorted(list(set(ham_tickers)))
 results = []
 gonderilenler = sinyalleri_yukle()
 
-print(
-    '🔍 Büyük Trend Yükselişte + Kısa Vadeli Dip Dönüşü (VT Cross & RSI) Taraması Başlatılıyor...'
-)
+print('🔍 Büyük Trend Yükselişte + Kısa Vadeli Dip Dönüş Taraması...')
 
 try:
     data_1h = yf.download(
@@ -168,7 +169,7 @@ try:
     )
     data_1d = yf.download(
         tickers=ticker_symbols,
-        period='2y',
+        period='10y',
         interval='1d',
         group_by='ticker',
         progress=False,
@@ -178,7 +179,7 @@ except Exception as e:
     print(f'Veri çekilirken hata oluştu: {e}')
     sys.exit()
 
-for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'):
+for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler Taranıyor'):
     ticker = ticker_symbol.replace('.IS', '')
     try:
 
@@ -196,9 +197,10 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'
         df_h1 = df_get(data_1h, ticker_symbol).dropna(how='all')
         df_d1 = df_get(data_1d, ticker_symbol).dropna(how='all')
 
-        if df_h1.empty or df_d1.empty or len(df_h1) < 40 or len(df_d1) < 100:
+        if df_h1.empty or df_d1.empty or len(df_h1) < 30 or len(df_d1) < 60:
             continue
 
+        # 4 Saatlik Periyot Oluştur
         df_h4 = (
             df_h1.resample('4h', origin='start')
             .agg({
@@ -210,6 +212,8 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'
             })
             .dropna()
         )
+
+        # Haftalık ve Aylık Grafikler (Ana Trend Tespiti İçin)
         df_weekly = (
             df_d1.resample('1W-FRI')
             .agg({
@@ -221,6 +225,7 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'
             })
             .dropna()
         )
+
         df_monthly = (
             df_d1.resample('1ME')
             .agg({
@@ -233,33 +238,41 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'
             .dropna()
         )
 
-        if len(df_weekly) < 15 or len(df_monthly) < 10:
+        # 1. BÜYÜK RESİM / MAKRORTREND KONTROLÜ (Haftalık & Aylık EMA)
+        # Yeterli veri varsa EMA100, az veri varsa EMA50 kontrol edilir.
+        p_w = 100 if len(df_weekly) >= 100 else 50
+        p_m = 50 if len(df_monthly) >= 50 else 20
+
+        df_weekly['EMA'] = (
+            df_weekly['Close'].ewm(span=p_w, adjust=False).mean()
+        )
+        df_monthly['EMA'] = (
+            df_monthly['Close'].ewm(span=p_m, adjust=False).mean()
+        )
+
+        haftalik_ok = (
+            df_weekly['EMA'].isna().iloc[-1]
+            or float(df_weekly['Close'].iloc[-1])
+            >= float(df_weekly['EMA'].iloc[-1])
+        )
+        aylik_ok = (
+            df_monthly['EMA'].isna().iloc[-1]
+            or float(df_monthly['Close'].iloc[-1])
+            >= float(df_monthly['EMA'].iloc[-1])
+        )
+
+        # Ana trend yükselişte değilse hisseyi geç
+        if not (haftalik_ok and aylik_ok):
             continue
 
-        # 1. MAKRO TREND KONTROLÜ (AYLIK VE HAFTALIK YÜKSELİŞ)
-        df_monthly['EMA20'] = (
-            df_monthly['Close'].ewm(span=20, adjust=False).mean()
-        )
-        df_weekly['EMA20'] = (
-            df_weekly['Close'].ewm(span=20, adjust=False).mean()
-        )
-
-        aylik_yukseliste = float(df_monthly['Close'].iloc[-1]) > float(
-            df_monthly['EMA20'].iloc[-1]
-        )
-        haftalik_yukseliste = float(df_weekly['Close'].iloc[-1]) > float(
-            df_weekly['EMA20'].iloc[-1]
-        )
-
-        if not (aylik_yukseliste and haftalik_yukseliste):
-            continue
-
-        # 2. KISA VADE DİP VE DÖNÜŞ SİNYALİ KONTROLÜ (1H veya 4H)
-        for df in [df_h1, df_h4]:
+        # 2. KISA VADEDE DİPTEN DÖNÜŞ KONTROLÜ (1H ve 4H)
+        def dip_donus_var_mi(df):
             df['RSI'] = rsi_hesapla(df['Close'])
             df['WT1'], df['WT2'] = wavetrend_hesapla(df)
 
-        def dip_donus_var_mi(df):
+            if len(df) < 5:
+                return False, 0, 0, 0
+
             rsi_curr = float(df['RSI'].iloc[-1])
             rsi_prev = float(df['RSI'].iloc[-2])
 
@@ -268,62 +281,75 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Düzeltme Bitişleri Taranıyor'
             wt1_prev = float(df['WT1'].iloc[-2])
             wt2_prev = float(df['WT2'].iloc[-2])
 
-            # RSI 30-34 Bandında Yukarı Kesişim / İvme
-            rsi_dip_donus = (rsi_prev <= 34) and (rsi_curr > rsi_prev)
+            # A) RSI KOŞULU: 28 - 34 Arasında OLACAK ve Yönü YUKARI bakacak
+            rsi_tamam = (28 <= rsi_curr <= 34) and (rsi_curr > rsi_prev)
 
-            # WaveTrend (VT Cross) Kesişimi veya Yukarı İvme
-            vt_al_sinyali = (wt1_prev <= wt2_prev and wt1_curr > wt2_curr) or (
-                wt1_curr > wt2_curr and wt1_curr > wt1_prev
+            # B) WAVETREND (VT) DİPTEN DÖNÜŞ KOŞULU:
+            # - WT1, WT2'yi yukarı kesmiş veya üstünde duruyor
+            # - WT1'in kendi eğimi yukarı bakıyor (WT1_curr > WT1_prev)
+            # - WT1 dip/düzeltme bölgesinde (Örn: WT1 < 15, tepe noktası olmamalı)
+            vt_kesisim = (
+                (wt1_prev <= wt2_prev and wt1_curr > wt2_curr)
+                or (wt1_curr > wt2_curr)
             )
+            vt_egim_yukari = wt1_curr > wt1_prev
+            vt_dip_bolgesinde = wt1_curr <= 20  # Dip bölgesinden dönüş
+
+            vt_tamam = vt_kesisim and vt_egim_yukari and vt_dip_bolgesinde
 
             return (
-                rsi_dip_donus
-                and vt_al_sinyali,
+                rsi_tamam and vt_tamam,
                 rsi_curr,
                 wt1_curr,
                 wt2_curr,
             )
 
-        h1_sinyal, h1_rsi, h1_wt1, h1_wt2 = dip_donus_var_mi(df_h1)
-        h4_sinyal, h4_rsi, h4_wt1, h4_wt2 = dip_donus_var_mi(df_h4)
+        periyotlar = []
+        if TARAMA_1SAATLIK:
+            periyotlar.append(('1 Saatlik', df_h1))
+        if TARAMA_4SAATLIK:
+            periyotlar.append(('4 Saatlik', df_h4))
 
-        if not (h1_sinyal or h4_sinyal):
-            continue
+        for periyot_adi, df_periyot in periyotlar:
+            sinyal_var, rsi_val, wt1_val, wt2_val = dip_donus_var_mi(df_periyot)
 
-        periyot_label = '1 Saatlik' if h1_sinyal else '4 Saatlik'
-        aktif_rsi = h1_rsi if h1_sinyal else h4_rsi
+            if sinyal_var:
+                son_fiyat = float(df_periyot['Close'].iloc[-1])
+                mum_zaman_str = pd.to_datetime(df_periyot.index[-1]).strftime(
+                    '%Y%m%d_%H%M'
+                )
+                periyot_kod = '1H' if periyot_adi == '1 Saatlik' else '4H'
+                sinyal_id = f'{ticker}_{periyot_kod}_DIP_{mum_zaman_str}'
 
-        son_fiyat = float(df_h1['Close'].iloc[-1])
-        mum_zaman_str = pd.to_datetime(df_h1.index[-1]).strftime('%Y%m%d_%H%M')
-        sinyal_id = f'{ticker}_DIP_DONUS_{mum_zaman_str}'
+                bilgi = {
+                    'Hisse': ticker,
+                    'Son Fiyat': round(son_fiyat, 2),
+                    'Sinyal Periyodu': periyot_adi,
+                    'RSI': round(rsi_val, 2),
+                    'WaveTrend WT1': round(wt1_val, 2),
+                    'WaveTrend WT2': round(wt2_val, 2),
+                    'Ana Trend': 'Haftalık / Aylık Yükselişte 🟢',
+                    'Tarih': str(df_periyot.index[-1]),
+                }
+                results.append(bilgi)
 
-        bilgi = {
-            'Hisse': ticker,
-            'Son Fiyat': round(son_fiyat, 2),
-            'Sinyal Periyodu': periyot_label,
-            'RSI': round(aktif_rsi, 2),
-            'WaveTrend WT1': round(h1_wt1 if h1_sinyal else h4_wt1, 2),
-            'WaveTrend WT2': round(h1_wt2 if h1_sinyal else h4_wt2, 2),
-            'Aylık & Haftalık': 'Yükselişte 🟢',
-            'Tarih': str(df_h1.index[-1]),
-        }
-        results.append(bilgi)
-
-        if sinyal_id not in gonderilenler:
-            tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
-            msg = (
-                f'🎯 *BİST DÜZELTME BİTİŞİ & DİP DÖNÜŞ SİNYALİ*\n'
-                f'*Hisse:* `{ticker}`\n'
-                f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n\n'
-                f'🌳 *Ana Trend:* Aylık & Haftalık Yükselişte 🟢\n'
-                f'⚡ *Sinyal Periyodu:* {periyot_label}\n'
-                f'📊 *RSI (Dip Dönüşü):* `{aktif_rsi:.1f}` (30-34 Bandı Kesişimi)\n'
-                f'🌊 *VT Cross:* Alım İvmesi Teyit Edildi (WT1 > WT2)\n\n'
-                f'📈 [TradingView Grafiği Aç]({tv_link})'
-            )
-            telegram_mesaj_gonder(msg)
-            gonderilenler[sinyal_id] = True
-            time.sleep(0.02)
+                if sinyal_id not in gonderilenler:
+                    tv_link = (
+                        f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
+                    )
+                    msg = (
+                        f'🚀 *BİST KISA VADELİ DİPTEN DÖNÜŞ SİNYALİ*\n'
+                        f'*Hisse:* `{ticker}`\n'
+                        f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n\n'
+                        f'🌳 *Ana Trend:* Haftalık/Aylık Trend Pozitif 🟢\n'
+                        f'⚡ *Sinyal Periyodu:* `{periyot_adi}`\n'
+                        f'📊 *RSI:* `{rsi_val:.1f}` (28-34 Bandında & Yukarı Eğilimli)\n'
+                        f'🌊 *WaveTrend:* Dip Bölgesinden Yukarı Dönüş Başladı ↗️\n\n'
+                        f'📈 [TradingView Grafiği Aç]({tv_link})'
+                    )
+                    telegram_mesaj_gonder(msg)
+                    gonderilenler[sinyal_id] = True
+                    time.sleep(0.02)
 
     except Exception:
         pass
@@ -332,12 +358,12 @@ sinyalleri_kaydet(gonderilenler)
 
 if results:
     df_results = pd.DataFrame(results)
-    excel_filename = 'BIST_Dip_Donus_VT_RSI_Sonuclari.xlsx'
+    excel_filename = 'BIST_TrendIci_DipDonus_Sonuclari.xlsx'
     df_results.to_excel(excel_filename, index=False)
     print(
-        f"\n✅ Tarama tamamlandı! Toplam {len(results)} hissede dip dönüş sinyali tespit edildi."
+        f'\n✅ Tarama tamamlandı! Toplam {len(results)} adet dipten dönüş sinyali bulundu.'
     )
 else:
     print(
-        '\n⚠️ Aylık/Haftalık yükselişte olup saatlik/4 saatlikte dip dönüşü veren hisse bulunamadı.'
+        '\n⚠️ Şu anda bu kriterleri (Ana trend yukarı + 1H/4H RSI 28-34 arası eğim yukarı + VT dipten dönüş) karşılayan hisse bulunamadı.'
     )
