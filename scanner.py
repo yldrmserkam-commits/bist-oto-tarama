@@ -31,70 +31,70 @@ TARAMA_4SAATLIK = False
 
 # --- 500+ BİST HİSSE LİSTESİ ---
 ticker_symbols = [
-    'A1CAP.IS', 'A1YEN.IS', 'AAGYO.IS', 'ACSEL.IS', 'ADEL.IS', 'ADESE.IS', 'ADGYO.IS', 'AEFES.IS', 'AFYON.IS', 'AGESA.IS',
-    'AGHOL.IS', 'AGROT.IS', 'AGYO.IS', 'AHGAZ.IS', 'AHSGY.IS', 'AKBNK.IS', 'AKCNS.IS', 'AKENR.IS', 'AKFGY.IS', 'AKFIS.IS',
-    'AKFYE.IS', 'AKGRT.IS', 'AKHAN.IS', 'AKMGY.IS', 'AKSA.IS', 'AKSEN.IS', 'AKSGY.IS', 'AKSUE.IS', 'AKYHO.IS', 'ALARK.IS',
-    'ALBRK.IS', 'ALBTN.IS', 'ALCAR.IS', 'ALCTL.IS', 'ALFAS.IS', 'ALGYO.IS', 'ALKA.IS', 'ALKIM.IS', 'ALKLC.IS', 'ALTINS1.IS',
-    'ALTNY.IS', 'ALVES.IS', 'ANELE.IS', 'ANGEN.IS', 'ANHYT.IS', 'ANSGR.IS', 'ARASE.IS', 'ARCLK.IS', 'ARDYZ.IS', 'ARENA.IS',
-    'ARFYE.IS', 'ARMGD.IS', 'ARSAN.IS', 'ARTMS.IS', 'ARZUM.IS', 'ASELS.IS', 'ASGYO.IS', 'ASTOR.IS', 'ASUZU.IS', 'ATAGY.IS',
-    'ATAKP.IS', 'ATATP.IS', 'ATATR.IS', 'ATEKS.IS', 'ATLAS.IS', 'ATSYH.IS', 'AVGYO.IS', 'AVHOL.IS', 'AVOD.IS', 'AVPGY.IS',
-    'AVTUR.IS', 'AYCES.IS', 'AYDEM.IS', 'AYEN.IS', 'AYES.IS', 'AYGAZ.IS', 'AZTEK.IS', 'BAGFS.IS', 'BAHKM.IS', 'BAKAB.IS',
-    'BALAT.IS', 'BALSU.IS', 'BANVT.IS', 'BARMA.IS', 'BASCM.IS', 'BASGZ.IS', 'BAYRK.IS', 'BEGYO.IS', 'BERA.IS', 'BESLR.IS',
-    'BESTE.IS', 'BETAE.IS', 'BEYAZ.IS', 'BFREN.IS', 'BIENY.IS', 'BIGCH.IS', 'BIGEN.IS', 'BIGTK.IS', 'BIMAS.IS', 'BINBN.IS',
-    'BINHO.IS', 'BIOEN.IS', 'BIZIM.IS', 'BJKAS.IS', 'BKRGY.IS', 'BLCYT.IS', 'BLUME.IS', 'BMSCH.IS', 'BMSTL.IS', 'BNTAS.IS',
-    'BOBET.IS', 'BORLS.IS', 'BORSK.IS', 'BOSSA.IS', 'BRISA.IS', 'BRKO.IS', 'BRKSN.IS', 'BRKVY.IS', 'BRLSM.IS', 'BRMEN.IS',
-    'BRSAN.IS', 'BRYAT.IS', 'BSOKE.IS', 'BTCIM.IS', 'BUCIM.IS', 'BULGS.IS', 'BURCE.IS', 'BURVA.IS', 'BVSAN.IS', 'BYDNR.IS',
-    'CANTE.IS', 'CASA.IS', 'CATES.IS', 'CCOLA.IS', 'CELHA.IS', 'CEMAS.IS', 'CEMTS.IS', 'CEMZY.IS', 'CEOEM.IS', 'CGCAM.IS',
-    'CIMSA.IS', 'CITAS.IS', 'CLEBI.IS', 'CMBTN.IS', 'CMENT.IS', 'CONSE.IS', 'COSMO.IS', 'CRDFA.IS', 'CRFSA.IS', 'CUSAN.IS',
-    'CVKMD.IS', 'CWENE.IS', 'DAGI.IS', 'DAPGM.IS', 'DARDL.IS', 'DCTTR.IS', 'DENGE.IS', 'DERHL.IS', 'DERIM.IS', 'DESA.IS',
-    'DESPC.IS', 'DEVA.IS', 'DGATE.IS', 'DGGYO.IS', 'DGNMO.IS', 'DIRIT.IS', 'DITAS.IS', 'DMLKTG.IS', 'DMRGD.IS', 'DMSAS.IS',
-    'DNISI.IS', 'DOAS.IS', 'DOCO.IS', 'DOFER.IS', 'DOFRB.IS', 'DOGUB.IS', 'DOHOL.IS', 'DOKTA.IS', 'DSTKF.IS', 'DUNYH.IS',
-    'DURDO.IS', 'DURKN.IS', 'DYOBY.IS', 'DZGYO.IS', 'EBEBK.IS', 'ECILC.IS', 'ECOGR.IS', 'ECZYT.IS', 'EDATA.IS', 'EDIP.IS',
-    'EFOR.IS', 'EGEEN.IS', 'EGEGY.IS', 'EGEPO.IS', 'EGGUB.IS', 'EGPRO.IS', 'EGSER.IS', 'EKDMR.IS', 'EKGYO.IS', 'EKIM.IS',
-    'EKIZ.IS', 'EKOS.IS', 'EKSUN.IS', 'ELITE.IS', 'EMKEL.IS', 'EMNIS.IS', 'EMPAE.IS', 'ENDAE.IS', 'ENERY.IS', 'ENJSA.IS',
-    'ENKAI.IS', 'ENPRA.IS', 'ENSRI.IS', 'ENTRA.IS', 'EPLAS.IS', 'ERBOS.IS', 'ERCB.IS', 'EREGL.IS', 'ERSU.IS', 'ESCAR.IS',
-    'ESCOM.IS', 'ESEN.IS', 'ETILR.IS', 'ETYAT.IS', 'EUHOL.IS', 'EUKYO.IS', 'EUPWR.IS', 'EUREN.IS', 'EUYO.IS', 'EYGYO.IS',
-    'FADE.IS', 'FENER.IS', 'FLAP.IS', 'FMIZP.IS', 'FONET.IS', 'FORMT.IS', 'FORTE.IS', 'FRIGO.IS', 'FRMPL.IS', 'FROTO.IS',
-    'FZLGY.IS', 'GARAN.IS', 'GARFA.IS', 'GATEG.IS', 'GEDIK.IS', 'GEDZA.IS', 'GENIL.IS', 'GENKM.IS', 'GENTS.IS', 'GEREL.IS',
-    'GESAN.IS', 'GIPTA.IS', 'GLBMD.IS', 'GLCVY.IS', 'GLRMK.IS', 'GLRYH.IS', 'GLYHO.IS', 'GMTAS.IS', 'GOKNR.IS', 'GOLDA.IS',
-    'GOLTS.IS', 'GOODY.IS', 'GOZDE.IS', 'GRNYO.IS', 'GRSEL.IS', 'GRTHO.IS', 'GSDDE.IS', 'GSDHO.IS', 'GSRAY.IS', 'GUBRF.IS',
-    'GUNDG.IS', 'GWIND.IS', 'GZNMI.IS', 'HALKB.IS', 'HATEK.IS', 'HATSN.IS', 'HDFGS.IS', 'HEDEF.IS', 'HEKTS.IS', 'HKTM.IS',
-    'HLGYO.IS', 'HOROZ.IS', 'HRKET.IS', 'HTTBT.IS', 'HUBVC.IS', 'HUNER.IS', 'HURGZ.IS', 'ICBCT.IS', 'ICUGS.IS', 'IDGYO.IS',
-    'IEYHO.IS', 'IHAAS.IS', 'IHEVA.IS', 'IHGZT.IS', 'IHLAS.IS', 'IHLGM.IS', 'IHYAY.IS', 'IMASM.IS', 'INDES.IS', 'INFO.IS',
-    'INGRM.IS', 'INTEK.IS', 'INTEM.IS', 'INTET.IS', 'INVEO.IS', 'INVES.IS', 'ISATR.IS', 'ISBIR.IS', 'ISBTR.IS', 'ISCTR.IS',
-    'ISDMR.IS', 'ISFIN.IS', 'ISGSY.IS', 'ISGYO.IS', 'ISKPL.IS', 'ISKUR.IS', 'ISMEN.IS', 'ISSEN.IS', 'ISVEA.IS', 'ISYAT.IS',
-    'IZENR.IS', 'IZFAS.IS', 'IZINV.IS', 'IZMDC.IS', 'JANTS.IS', 'KAPLM.IS', 'KARCL.IS', 'KAREL.IS', 'KARSN.IS', 'KARTN.IS',
-    'KATMR.IS', 'KAYSE.IS', 'KBORU.IS', 'KCAER.IS', 'KCHOL.IS', 'KENT.IS', 'KERVN.IS', 'KFEIN.IS', 'KGYO.IS', 'KIMMR.IS',
-    'KLGYO.IS', 'KLKIM.IS', 'KLMSN.IS', 'KLNMA.IS', 'KLRHO.IS', 'KLSER.IS', 'KLSYN.IS', 'KLYPV.IS', 'KMPUR.IS', 'KNFRT.IS',
-    'KOCMT.IS', 'KONKA.IS', 'KONTR.IS', 'KONYA.IS', 'KOPOL.IS', 'KORDS.IS', 'KOTON.IS', 'KPEKS.IS', 'KRDMA.IS', 'KRDMB.IS',
-    'KRDMD.IS', 'KRGYO.IS', 'KRONT.IS', 'KRPLS.IS', 'KRSTL.IS', 'KRTEK.IS', 'KRVGD.IS', 'KSTUR.IS', 'KTLEV.IS', 'KTSKR.IS',
-    'KUTPO.IS', 'KUVVA.IS', 'KUYAS.IS', 'KZBGY.IS', 'KZGYO.IS', 'LIDER.IS', 'LIDFA.IS', 'LILAK.IS', 'LINK.IS', 'LKMNH.IS',
-    'LMKDC.IS', 'LOGO.IS', 'LRSHO.IS', 'LUKSK.IS', 'LXGYO.IS', 'LYDHO.IS', 'LYDYE.IS', 'MAALT.IS', 'MACKO.IS', 'MAGEN.IS',
-    'MAKIM.IS', 'MAKTK.IS', 'MANAS.IS', 'MARBL.IS', 'MARMR.IS', 'MARTI.IS', 'MASFN.IS', 'MAVI.IS', 'MCARD.IS', 'MEDTR.IS',
-    'MEGAP.IS', 'MEGMT.IS', 'MEKAG.IS', 'MEPET.IS', 'MERCN.IS', 'MERIT.IS', 'MERKO.IS', 'METEN.IS', 'METRO.IS', 'MEYSU.IS',
-    'MGROS.IS', 'MHRGY.IS', 'MIATK.IS', 'MMCAS.IS', 'MNDRS.IS', 'MNDTR.IS', 'MOBTL.IS', 'MOGAN.IS', 'MOPAS.IS', 'MPARK.IS',
-    'MRGYO.IS', 'MRSHL.IS', 'MSGYO.IS', 'MTRKS.IS', 'MTRYO.IS', 'MZHLD.IS', 'NATEN.IS', 'NETAS.IS', 'NETCD.IS', 'NIBAS.IS',
-    'NTGAZ.IS', 'NTHOL.IS', 'NUGYO.IS', 'NUHCM.IS', 'OBAMS.IS', 'OBASE.IS', 'ODAS.IS', 'ODINE.IS', 'OFSYM.IS', 'ONCSM.IS',
-    'ONRYT.IS', 'ORCAY.IS', 'ORGE.IS', 'ORMA.IS', 'ORZAX.IS', 'OSMEN.IS', 'OSTIM.IS', 'OTKAR.IS', 'OTTO.IS', 'OYAKC.IS',
-    'OYAYO.IS', 'OYLUM.IS', 'OYYAT.IS', 'OZATD.IS', 'OZGYO.IS', 'OZKGY.IS', 'OZRDN.IS', 'OZSUB.IS', 'OZYSR.IS', 'PAGYO.IS',
-    'PAHOL.IS', 'PAMEL.IS', 'PAPIL.IS', 'PARSN.IS', 'PASEU.IS', 'PATEK.IS', 'PCILT.IS', 'PEKGY.IS', 'PENGD.IS', 'PENTA.IS',
-    'PETKM.IS', 'PETUN.IS', 'PGSUS.IS', 'PINSU.IS', 'PKART.IS', 'PKENT.IS', 'PLTUR.IS', 'PNLSN.IS', 'PNSUT.IS', 'POLHO.IS',
-    'POLTK.IS', 'PRDGS.IS', 'PRKAB.IS', 'PRKME.IS', 'PRZMA.IS', 'PSDTC.IS', 'PSGYO.IS', 'QNBFK.IS', 'QNBTR.IS', 'QUAGR.IS',
-    'QUICK.IS', 'RALYH.IS', 'RAYSG.IS', 'REEDR.IS', 'RGYAS.IS', 'RNPOL.IS', 'RODRG.IS', 'RTALB.IS', 'RUBNS.IS', 'RUZYE.IS',
-    'RYGYO.IS', 'RYSAS.IS', 'SAFKR.IS', 'SAHOL.IS', 'SAMAT.IS', 'SANEL.IS', 'SANFM.IS', 'SANKO.IS', 'SARAE.IS', 'SARKY.IS',
-    'SASA.IS', 'SAYAS.IS', 'SDTTR.IS', 'SEGMN.IS', 'SEGYO.IS', 'SEKFK.IS', 'SEKUR.IS', 'SELEC.IS', 'SELVA.IS', 'SERNT.IS',
-    'SEYKM.IS', 'SILVR.IS', 'SISE.IS', 'SKBNK.IS', 'SKTAS.IS', 'SKYLP.IS', 'SKYMD.IS', 'SMART.IS', 'SMRTG.IS', 'SMRVA.IS',
-    'SNGYO.IS', 'SNICA.IS', 'SNPAM.IS', 'SODSN.IS', 'SOHOE.IS', 'SOKE.IS', 'SOKM.IS', 'SONME.IS', 'SRVGY.IS', 'SSAAT.IS',
-    'SUMAS.IS', 'SUNTK.IS', 'SURGY.IS', 'SUWEN.IS', 'SVGYO.IS', 'TABGD.IS', 'TARKM.IS', 'TATEN.IS', 'TATGD.IS', 'TAVHL.IS',
-    'TBORG.IS', 'TCELL.IS', 'TCKRC.IS', 'TDGYO.IS', 'TEHOL.IS', 'TEKTU.IS', 'TERA.IS', 'TEZOL.IS', 'TGSAS.IS', 'THYAO.IS',
-    'TKFEN.IS', 'TKNKA.IS', 'TKNSA.IS', 'TLMAN.IS', 'TMPOL.IS', 'TMSN.IS', 'TNZTP.IS', 'TOASO.IS', 'TRALT.IS', 'TRCAS.IS',
-    'TRENJ.IS', 'TRGYO.IS', 'TRHOL.IS', 'TRILC.IS', 'TRMET.IS', 'TSGYO.IS', 'TSKB.IS', 'TSPOR.IS', 'TTKOM.IS', 'TTRAK.IS',
-    'TUCLK.IS', 'TUKAS.IS', 'TUPRS.IS', 'TUREX.IS', 'TURGG.IS', 'TURSG.IS', 'UCAYM.IS', 'UFUK.IS', 'ULAS.IS', 'ULKER.IS',
-    'ULUFA.IS', 'ULUSE.IS', 'ULUUN.IS', 'UMPAS.IS', 'UNLU.IS', 'USAK.IS', 'USHOL.IS', 'VAKBN.IS', 'VAKFA.IS', 'VAKFN.IS',
-    'VAKKO.IS', 'VANGD.IS', 'VBTYZ.IS', 'VERTU.IS', 'VERUS.IS', 'VESBE.IS', 'VESTL.IS', 'VEYAS.IS', 'VKFYO.IS', 'VKGYO.IS',
-    'VKING.IS', 'VRGYO.IS', 'VSNMD.IS', 'YAPRK.IS', 'YATAS.IS', 'YAYLA.IS', 'YBTAS.IS', 'YEOTK.IS', 'YESIL.IS', 'YGGYO.IS',
-    'YIGIT.IS', 'YKBNK.IS', 'YKSLN.IS', 'YONGA.IS', 'YUNSA.IS', 'YYAPI.IS', 'YYLGD.IS', 'ZEDUR.IS', 'ZERGY.IS', 'ZGYO.IS',
-    'ZOREN.IS', 'ZRGYO.IS'
+    'A1CAP', 'A1YEN', 'AAGYO', 'ACSEL', 'ADEL', 'ADESE', 'ADGYO', 'AEFES', 'AFYON', 'AGESA',
+    'AGHOL', 'AGROT', 'AGYO', 'AHGAZ', 'AHSGY', 'AKBNK', 'AKCNS', 'AKENR', 'AKFGY', 'AKFIS',
+    'AKFYE', 'AKGRT', 'AKHAN', 'AKMGY', 'AKSA', 'AKSEN', 'AKSGY', 'AKSUE', 'AKYHO', 'ALARK',
+    'ALBRK', 'ALBTN', 'ALCAR', 'ALCTL', 'ALFAS', 'ALGYO', 'ALKA', 'ALKIM', 'ALKLC', 'ALTINS1',
+    'ALTNY', 'ALVES', 'ANELE', 'ANGEN', 'ANHYT', 'ANSGR', 'ARASE', 'ARCLK', 'ARDYZ', 'ARENA',
+    'ARFYE', 'ARMGD', 'ARSAN', 'ARTMS', 'ARZUM', 'ASELS', 'ASGYO', 'ASTOR', 'ASUZU', 'ATAGY',
+    'ATAKP', 'ATATP', 'ATATR', 'ATEKS', 'ATLAS', 'ATSYH', 'AVGYO', 'AVHOL', 'AVOD', 'AVPGY',
+    'AVTUR', 'AYCES', 'AYDEM', 'AYEN', 'AYES', 'AYGAZ', 'AZTEK', 'BAGFS', 'BAHKM', 'BAKAB',
+    'BALAT', 'BALSU', 'BANVT', 'BARMA', 'BASCM', 'BASGZ', 'BAYRK', 'BEGYO', 'BERA', 'BESLR',
+    'BESTE', 'BETAE', 'BEYAZ', 'BFREN', 'BIENY', 'BIGCH', 'BIGEN', 'BIGTK', 'BIMAS', 'BINBN',
+    'BINHO', 'BIOEN', 'BIZIM', 'BJKAS', 'BKRGY', 'BLCYT', 'BLUME', 'BMSCH', 'BMSTL', 'BNTAS',
+    'BOBET', 'BORLS', 'BORSK', 'BOSSA', 'BRISA', 'BRKO', 'BRKSN', 'BRKVY', 'BRLSM', 'BRMEN',
+    'BRSAN', 'BRYAT', 'BSOKE', 'BTCIM', 'BUCIM', 'BULGS', 'BURCE', 'BURVA', 'BVSAN', 'BYDNR',
+    'CANTE', 'CASA', 'CATES', 'CCOLA', 'CELHA', 'CEMAS', 'CEMTS', 'CEMZY', 'CEOEM', 'CGCAM',
+    'CIMSA', 'CITAS', 'CLEBI', 'CMBTN', 'CMENT', 'CONSE', 'COSMO', 'CRDFA', 'CRFSA', 'CUSAN',
+    'CVKMD', 'CWENE', 'DAGI', 'DAPGM', 'DARDL', 'DCTTR', 'DENGE', 'DERHL', 'DERIM', 'DESA',
+    'DESPC', 'DEVA', 'DGATE', 'DGGYO', 'DGNMO', 'DIRIT', 'DITAS', 'DMLKTG', 'DMRGD', 'DMSAS',
+    'DNISI', 'DOAS', 'DOCO', 'DOFER', 'DOFRB', 'DOGUB', 'DOHOL', 'DOKTA', 'DSTKF', 'DUNYH',
+    'DURDO', 'DURKN', 'DYOBY', 'DZGYO', 'EBEBK', 'ECILC', 'ECOGR', 'ECZYT', 'EDATA', 'EDIP',
+    'EFOR', 'EGEEN', 'EGEGY', 'EGEPO', 'EGGUB', 'EGPRO', 'EGSER', 'EKDMR', 'EKGYO', 'EKIM',
+    'EKIZ', 'EKOS', 'EKSUN', 'ELITE', 'EMKEL', 'EMNIS', 'EMPAE', 'ENDAE', 'ENERY', 'ENJSA',
+    'ENKAI', 'ENPRA', 'ENSRI', 'ENTRA', 'EPLAS', 'ERBOS', 'ERCB', 'EREGL', 'ERSU', 'ESCAR',
+    'ESCOM', 'ESEN', 'ETILR', 'ETYAT', 'EUHOL', 'EUKYO', 'EUPWR', 'EUREN', 'EUYO', 'EYGYO',
+    'FADE', 'FENER', 'FLAP', 'FMIZP', 'FONET', 'FORMT', 'FORTE', 'FRIGO', 'FRMPL', 'FROTO',
+    'FZLGY', 'GARAN', 'GARFA', 'GATEG', 'GEDIK', 'GEDZA', 'GENIL', 'GENKM', 'GENTS', 'GEREL',
+    'GESAN', 'GIPTA', 'GLBMD', 'GLCVY', 'GLRMK', 'GLRYH', 'GLYHO', 'GMTAS', 'GOKNR', 'GOLDA',
+    'GOLTS', 'GOODY', 'GOZDE', 'GRNYO', 'GRSEL', 'GRTHO', 'GSDDE', 'GSDHO', 'GSRAY', 'GUBRF',
+    'GUNDG', 'GWIND', 'GZNMI', 'HALKB', 'HATEK', 'HATSN', 'HDFGS', 'HEDEF', 'HEKTS', 'HKTM',
+    'HLGYO', 'HOROZ', 'HRKET', 'HTTBT', 'HUBVC', 'HUNER', 'HURGZ', 'ICBCT', 'ICUGS', 'IDGYO',
+    'IEYHO', 'IHAAS', 'IHEVA', 'IHGZT', 'IHLAS', 'IHLGM', 'IHYAY', 'IMASM', 'INDES', 'INFO',
+    'INGRM', 'INTEK', 'INTEM', 'INTET', 'INVEO', 'INVES', 'ISATR', 'ISBIR', 'ISBTR', 'ISCTR',
+    'ISDMR', 'ISFIN', 'ISGSY', 'ISGYO', 'ISKPL', 'ISKUR', 'ISMEN', 'ISSEN', 'ISVEA', 'ISYAT',
+    'IZENR', 'IZFAS', 'IZINV', 'IZMDC', 'JANTS', 'KAPLM', 'KARCL', 'KAREL', 'KARSN', 'KARTN',
+    'KATMR', 'KAYSE', 'KBORU', 'KCAER', 'KCHOL', 'KENT', 'KERVN', 'KFEIN', 'KGYO', 'KIMMR',
+    'KLGYO', 'KLKIM', 'KLMSN', 'KLNMA', 'KLRHO', 'KLSER', 'KLSYN', 'KLYPV', 'KMPUR', 'KNFRT',
+    'KOCMT', 'KONKA', 'KONTR', 'KONYA', 'KOPOL', 'KORDS', 'KOTON', 'KPEKS', 'KRDMA', 'KRDMB',
+    'KRDMD', 'KRGYO', 'KRONT', 'KRPLS', 'KRSTL', 'KRTEK', 'KRVGD', 'KSTUR', 'KTLEV', 'KTSKR',
+    'KUTPO', 'KUVVA', 'KUYAS', 'KZBGY', 'KZGYO', 'LIDER', 'LIDFA', 'LILAK', 'LINK', 'LKMNH',
+    'LMKDC', 'LOGO', 'LRSHO', 'LUKSK', 'LXGYO', 'LYDHO', 'LYDYE', 'MAALT', 'MACKO', 'MAGEN',
+    'MAKIM', 'MAKTK', 'MANAS', 'MARBL', 'MARMR', 'MARTI', 'MASFN', 'MAVI', 'MCARD', 'MEDTR',
+    'MEGAP', 'MEGMT', 'MEKAG', 'MEPET', 'MERCN', 'MERIT', 'MERKO', 'METEN', 'METRO', 'MEYSU',
+    'MGROS', 'MHRGY', 'MIATK', 'MMCAS', 'MNDRS', 'MNDTR', 'MOBTL', 'MOGAN', 'MOPAS', 'MPARK',
+    'MRGYO', 'MRSHL', 'MSGYO', 'MTRKS', 'MTRYO', 'MZHLD', 'NATEN', 'NETAS', 'NETCD', 'NIBAS',
+    'NTGAZ', 'NTHOL', 'NUGYO', 'NUHCM', 'OBAMS', 'OBASE', 'ODAS', 'ODINE', 'OFSYM', 'ONCSM',
+    'ONRYT', 'ORCAY', 'ORGE', 'ORMA', 'ORZAX', 'OSMEN', 'OSTIM', 'OTKAR', 'OTTO', 'OYAKC',
+    'OYAYO', 'OYLUM', 'OYYAT', 'OZATD', 'OZGYO', 'OZKGY', 'OZRDN', 'OZSUB', 'OZYSR', 'PAGYO',
+    'PAHOL', 'PAMEL', 'PAPIL', 'PARSN', 'PASEU', 'PATEK', 'PCILT', 'PEKGY', 'PENGD', 'PENTA',
+    'PETKM', 'PETUN', 'PGSUS', 'PINSU', 'PKART', 'PKENT', 'PLTUR', 'PNLSN', 'PNSUT', 'POLHO',
+    'POLTK', 'PRDGS', 'PRKAB', 'PRKME', 'PRZMA', 'PSDTC', 'PSGYO', 'QNBFK', 'QNBTR', 'QUAGR',
+    'QUICK', 'RALYH', 'RAYSG', 'REEDR', 'RGYAS', 'RNPOL', 'RODRG', 'RTALB', 'RUBNS', 'RUZYE',
+    'RYGYO', 'RYSAS', 'SAFKR', 'SAHOL', 'SAMAT', 'SANEL', 'SANFM', 'SANKO', 'SARAE', 'SARKY',
+    'SASA', 'SAYAS', 'SDTTR', 'SEGMN', 'SEGYO', 'SEKFK', 'SEKUR', 'SELEC', 'SELVA', 'SERNT',
+    'SEYKM', 'SILVR', 'SISE', 'SKBNK', 'SKTAS', 'SKYLP', 'SKYMD', 'SMART', 'SMRTG', 'SMRVA',
+    'SNGYO', 'SNICA', 'SNPAM', 'SODSN', 'SOHOE', 'SOKE', 'SOKM', 'SONME', 'SRVGY', 'SSAAT',
+    'SUMAS', 'SUNTK', 'SURGY', 'SUWEN', 'SVGYO', 'TABGD', 'TARKM', 'TATEN', 'TATGD', 'TAVHL',
+    'TBORG', 'TCELL', 'TCKRC', 'TDGYO', 'TEHOL', 'TEKTU', 'TERA', 'TEZOL', 'TGSAS', 'THYAO',
+    'TKFEN', 'TKNKA', 'TKNSA', 'TLMAN', 'TMPOL', 'TMSN', 'TNZTP', 'TOASO', 'TRALT', 'TRCAS',
+    'TRENJ', 'TRGYO', 'TRHOL', 'TRILC', 'TRMET', 'TSGYO', 'TSKB', 'TSPOR', 'TTKOM', 'TTRAK',
+    'TUCLK', 'TUKAS', 'TUPRS', 'TUREX', 'TURGG', 'TURSG', 'UCAYM', 'UFUK', 'ULAS', 'ULKER',
+    'ULUFA', 'ULUSE', 'ULUUN', 'UMPAS', 'UNLU', 'USAK', 'USHOL', 'VAKBN', 'VAKFA', 'VAKFN',
+    'VAKKO', 'VANGD', 'VBTYZ', 'VERTU', 'VERUS', 'VESBE', 'VESTL', 'VEYAS', 'VKFYO', 'VKGYO',
+    'VKING', 'VRGYO', 'VSNMD', 'YAPRK', 'YATAS', 'YAYLA', 'YBTAS', 'YEOTK', 'YESIL', 'YGGYO',
+    'YIGIT', 'YKBNK', 'YKSLN', 'YONGA', 'YUNSA', 'YYAPI', 'YYLGD', 'ZEDUR', 'ZERGY', 'ZGYO',
+    'ZOREN', 'ZRGYO'
 ]
 
 def sinyalleri_yukle():
@@ -151,9 +151,12 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 def telegram_mesaj_gonder(mesaj):
     if not TELEGRAM_AKTIF:
+        print("ℹ️ Telegram kapalı (TELEGRAM_AKTIF = False)")
         return
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        raise ValueError("⚠️ HATA: Telegram Token veya Chat ID bulunamadı! GitHub Secrets ayarlarına eklediğinden emin ol.")
+        print("🚨 KRİTİK HATA: TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID GitHub Secrets'da tanımlı değil!")
+        return
+    
     try:
         url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
         payload = {
@@ -162,14 +165,18 @@ def telegram_mesaj_gonder(mesaj):
             'parse_mode': 'Markdown',
             'disable_web_page_preview': True
         }
+        print(f"📤 Telegram'a mesaj gönderiliyor (Chat ID: {TELEGRAM_CHAT_ID})...")
         response = requests.post(url, json=payload, timeout=10)
+        
+        print(f"📥 Telegram Sunucu Yanıt Kodu: {response.status_code}")
+        print(f"📥 Telegram Yanıt İçeriği: {response.text}")
+        
         if response.status_code != 200:
-            raise RuntimeError(f"❌ Telegram Gönderim Hatası (Kod {response.status_code}): {response.text}")
+            print(f"❌ Telegram mesajı reddetti! Detay: {response.text}")
         else:
-            print("✅ Telegram mesajı başarıyla gönderildi!")
+            print("✅ Telegram mesajı başarıyla iletildi!")
     except Exception as e:
-        print(f'❌ Telegram bağlantı istisnası: {e}')
-        raise e  # Hatayı yukarı fırlatarak Actions'ın kırmızı vermesini ve hatayı net görmeni sağlıyoruz
+        print(f'❌ Telegram bağlantı sırasında kritik hata: {e}')
 
 results = []
 gonderilenler = sinyalleri_yukle()
@@ -179,8 +186,11 @@ print(f'🔍 15dk & 30dk Taraması Başlatılıyor ({len(ticker_symbols)} Hisse)
 CHUNK_SIZE = 100
 all_data_15m = pd.DataFrame()
 
-for i in range(0, len(ticker_symbols), CHUNK_SIZE):
-    chunk = ticker_symbols[i:i + CHUNK_SIZE]
+# YFinance için .IS eklerini otomatik ekliyoruz
+ticker_symbols_yf = [f"{t}.IS" for t in ticker_symbols]
+
+for i in range(0, len(ticker_symbols_yf), CHUNK_SIZE):
+    chunk = ticker_symbols_yf[i:i + CHUNK_SIZE]
     try:
         data_chunk = yf.download(
             tickers=chunk,
@@ -207,8 +217,8 @@ def df_get(data_source, symbol):
     except Exception:
         return pd.DataFrame()
 
-for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
-    ticker = ticker_symbol.replace('.IS', '')
+for ticker in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
+    ticker_symbol = f"{ticker}.IS"
     try:
         df_15m = df_get(all_data_15m, ticker_symbol).dropna(how='all')
 
