@@ -2,9 +2,9 @@ name: BIST Tarama Botu
 
 on:
   schedule:
-    # Her 15 dakikada bir otomatik çalışır
-    - cron: '*/15 * * * *'
-  workflow_dispatch: # Manuel olarak da 'Actions' sekmesinden başlatılabilir
+    # Her saatin 03, 17, 33 ve 47. dakikalarında çalışır (UTC)
+    - cron: '3,17,33,47 * * * *'
+  workflow_dispatch: # GitHub panelinden manuel çalıştırabilmek için
 
 jobs:
   run-bot:
