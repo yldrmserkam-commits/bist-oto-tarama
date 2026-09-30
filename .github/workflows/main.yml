@@ -24,6 +24,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install yfinance pandas numpy requests openpyxl tqdm
 
-    - name: Tarama Scriptini Çalıştır
+    - name: Dizin İçeriğini ve Dosyaları Listele
       run: |
-        python Scanner.py
+        echo "=== Kök Dizin İçeriği ==="
+        ls -la
+        echo "=== Depodaki Tüm Python Dosyaları ==="
+        find . -maxdepth 3 -name "*.py"
