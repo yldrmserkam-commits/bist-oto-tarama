@@ -1,0 +1,325 @@
+import json
+import os
+import subprocess
+import sys
+import time
+import warnings
+from datetime import datetime
+
+# Eksik kütüphaneleri otomatik yükle
+for paket in ['yfinance', 'pandas', 'numpy', 'requests', 'openpyxl', 'tqdm']:
+    try:
+        __import__(paket)
+    except ImportError:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', paket])
+
+import numpy as np
+import pandas as pd
+import requests
+from tqdm import tqdm
+import yfinance as yf
+
+warnings.filterwarnings('ignore')
+
+STATE_FILE = 'gonderilen_yeni_strateji_sinyalleri.json'
+
+# --- PERİYOT AYARLARI ---
+TARAMA_15DK = True
+TARAMA_30DK = True
+
+# --- TELEGRAM AYARLARI ---
+TELEGRAM_AKTIF = True
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8911263447:AAHoyIaowzRMAD0SYrZqKQnx3BGv4Sv3dLs')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '889982961')
+
+# --- 500+ BİST HİSSE LİSTESİ ---
+ticker_symbols = [
+    'A1CAP.IS', 'A1YEN.IS', 'AAGYO.IS', 'ACSEL.IS', 'ADEL.IS', 'ADESE.IS', 'ADGYO.IS', 'AEFES.IS', 'AFYON.IS', 'AGESA.IS',
+    'AGHOL.IS', 'AGROT.IS', 'AGYO.IS', 'AHGAZ.IS', 'AHSGY.IS', 'AKBNK.IS', 'AKCNS.IS', 'AKENR.IS', 'AKFGY.IS', 'AKFIS.IS',
+    'AKFYE.IS', 'AKGRT.IS', 'AKHAN.IS', 'AKMGY.IS', 'AKSA.IS', 'AKSEN.IS', 'AKSGY.IS', 'AKSUE.IS', 'AKYHO.IS', 'ALARK.IS',
+    'ALBRK.IS', 'ALBTN.IS', 'ALCAR.IS', 'ALCTL.IS', 'ALFAS.IS', 'ALGYO.IS', 'ALKA.IS', 'ALKIM.IS', 'ALKLC.IS', 'ALTINS1.IS',
+    'ALTNY.IS', 'ALVES.IS', 'ANELE.IS', 'ANGEN.IS', 'ANHYT.IS', 'ANSGR.IS', 'ARASE.IS', 'ARCLK.IS', 'ARDYZ.IS', 'ARENA.IS',
+    'ARFYE.IS', 'ARMGD.IS', 'ARSAN.IS', 'ARTMS.IS', 'ARZUM.IS', 'ASELS.IS', 'ASGYO.IS', 'ASTOR.IS', 'ASUZU.IS', 'ATAGY.IS',
+    'ATAKP.IS', 'ATATP.IS', 'ATATR.IS', 'ATEKS.IS', 'ATLAS.IS', 'ATSYH.IS', 'AVGYO.IS', 'AVHOL.IS', 'AVOD.IS', 'AVPGY.IS',
+    'AVTUR.IS', 'AYCES.IS', 'AYDEM.IS', 'AYEN.IS', 'AYES.IS', 'AYGAZ.IS', 'AZTEK.IS', 'BAGFS.IS', 'BAHKM.IS', 'BAKAB.IS',
+    'BALAT.IS', 'BALSU.IS', 'BANVT.IS', 'BARMA.IS', 'BASCM.IS', 'BASGZ.IS', 'BAYRK.IS', 'BEGYO.IS', 'BERA.IS', 'BESLR.IS',
+    'BESTE.IS', 'BETAE.IS', 'BEYAZ.IS', 'BFREN.IS', 'BIENY.IS', 'BIGCH.IS', 'BIGEN.IS', 'BIGTK.IS', 'BIMAS.IS', 'BINBN.IS',
+    'BINHO.IS', 'BIOEN.IS', 'BIZIM.IS', 'BJKAS.IS', 'BKRGY.IS', 'BLCYT.IS', 'BLUME.IS', 'BMSCH.IS', 'BMSTL.IS', 'BNTAS.IS',
+    'BOBET.IS', 'BORLS.IS', 'BORSK.IS', 'BOSSA.IS', 'BRISA.IS', 'BRKO.IS', 'BRKSN.IS', 'BRKVY.IS', 'BRLSM.IS', 'BRMEN.IS',
+    'BRSAN.IS', 'BRYAT.IS', 'BSOKE.IS', 'BTCIM.IS', 'BUCIM.IS', 'BULGS.IS', 'BURCE.IS', 'BURVA.IS', 'BVSAN.IS', 'BYDNR.IS',
+    'CANTE.IS', 'CASA.IS', 'CATES.IS', 'CCOLA.IS', 'CELHA.IS', 'CEMAS.IS', 'CEMTS.IS', 'CEMZY.IS', 'CEOEM.IS', 'CGCAM.IS',
+    'CIMSA.IS', 'CITAS.IS', 'CLEBI.IS', 'CMBTN.IS', 'CMENT.IS', 'CONSE.IS', 'COSMO.IS', 'CRDFA.IS', 'CRFSA.IS', 'CUSAN.IS',
+    'CVKMD.IS', 'CWENE.IS', 'DAGI.IS', 'DAPGM.IS', 'DARDL.IS', 'DCTTR.IS', 'DENGE.IS', 'DERHL.IS', 'DERIM.IS', 'DESA.IS',
+    'DESPC.IS', 'DEVA.IS', 'DGATE.IS', 'DGGYO.IS', 'DGNMO.IS', 'DIRIT.IS', 'DITAS.IS', 'DMLKTG.IS', 'DMRGD.IS', 'DMSAS.IS',
+    'DNISI.IS', 'DOAS.IS', 'DOCO.IS', 'DOFER.IS', 'DOFRB.IS', 'DOGUB.IS', 'DOHOL.IS', 'DOKTA.IS', 'DSTKF.IS', 'DUNYH.IS',
+    'DURDO.IS', 'DURKN.IS', 'DYOBY.IS', 'DZGYO.IS', 'EBEBK.IS', 'ECILC.IS', 'ECOGR.IS', 'ECZYT.IS', 'EDATA.IS', 'EDIP.IS',
+    'EFOR.IS', 'EGEEN.IS', 'EGEGY.IS', 'EGEPO.IS', 'EGGUB.IS', 'EGPRO.IS', 'EGSER.IS', 'EKDMR.IS', 'EKGYO.IS', 'EKIM.IS',
+    'EKIZ.IS', 'EKOS.IS', 'EKSUN.IS', 'ELITE.IS', 'EMKEL.IS', 'EMNIS.IS', 'EMPAE.IS', 'ENDAE.IS', 'ENERY.IS', 'ENJSA.IS',
+    'ENKAI.IS', 'ENPRA.IS', 'ENSRI.IS', 'ENTRA.IS', 'EPLAS.IS', 'ERBOS.IS', 'ERCB.IS', 'EREGL.IS', 'ERSU.IS', 'ESCAR.IS',
+    'ESCOM.IS', 'ESEN.IS', 'ETILR.IS', 'ETYAT.IS', 'EUHOL.IS', 'EUKYO.IS', 'EUPWR.IS', 'EUREN.IS', 'EUYO.IS', 'EYGYO.IS',
+    'FADE.IS', 'FENER.IS', 'FLAP.IS', 'FMIZP.IS', 'FONET.IS', 'FORMT.IS', 'FORTE.IS', 'FRIGO.IS', 'FRMPL.IS', 'FROTO.IS',
+    'FZLGY.IS', 'GARAN.IS', 'GARFA.IS', 'GATEG.IS', 'GEDIK.IS', 'GEDZA.IS', 'GENIL.IS', 'GENKM.IS', 'GENTS.IS', 'GEREL.IS',
+    'GESAN.IS', 'GIPTA.IS', 'GLBMD.IS', 'GLCVY.IS', 'GLRMK.IS', 'GLRYH.IS', 'GLYHO.IS', 'GMTAS.IS', 'GOKNR.IS', 'GOLDA.IS',
+    'GOLTS.IS', 'GOODY.IS', 'GOZDE.IS', 'GRNYO.IS', 'GRSEL.IS', 'GRTHO.IS', 'GSDDE.IS', 'GSDHO.IS', 'GSRAY.IS', 'GUBRF.IS',
+    'GUNDG.IS', 'GWIND.IS', 'GZNMI.IS', 'HALKB.IS', 'HATEK.IS', 'HATSN.IS', 'HDFGS.IS', 'HEDEF.IS', 'HEKTS.IS', 'HKTM.IS',
+    'HLGYO.IS', 'HOROZ.IS', 'HRKET.IS', 'HTTBT.IS', 'HUBVC.IS', 'HUNER.IS', 'HURGZ.IS', 'ICBCT.IS', 'ICUGS.IS', 'IDGYO.IS',
+    'IEYHO.IS', 'IHAAS.IS', 'IHEVA.IS', 'IHGZT.IS', 'IHLAS.IS', 'IHLGM.IS', 'IHYAY.IS', 'IMASM.IS', 'INDES.IS', 'INFO.IS',
+    'INGRM.IS', 'INTEK.IS', 'INTEM.IS', 'INTET.IS', 'INVEO.IS', 'INVES.IS', 'ISATR.IS', 'ISBIR.IS', 'ISBTR.IS', 'ISCTR.IS',
+    'ISDMR.IS', 'ISFIN.IS', 'ISGSY.IS', 'ISGYO.IS', 'ISKPL.IS', 'ISKUR.IS', 'ISMEN.IS', 'ISSEN.IS', 'ISVEA.IS', 'ISYAT.IS',
+    'IZENR.IS', 'IZFAS.IS', 'IZINV.IS', 'IZMDC.IS', 'JANTS.IS', 'KAPLM.IS', 'KARCL.IS', 'KAREL.IS', 'KARSN.IS', 'KARTN.IS',
+    'KATMR.IS', 'KAYSE.IS', 'KBORU.IS', 'KCAER.IS', 'KCHOL.IS', 'KENT.IS', 'KERVN.IS', 'KFEIN.IS', 'KGYO.IS', 'KIMMR.IS',
+    'KLGYO.IS', 'KLKIM.IS', 'KLMSN.IS', 'KLNMA.IS', 'KLRHO.IS', 'KLSER.IS', 'KLSYN.IS', 'KLYPV.IS', 'KMPUR.IS', 'KNFRT.IS',
+    'KOCMT.IS', 'KONKA.IS', 'KONTR.IS', 'KONYA.IS', 'KOPOL.IS', 'KORDS.IS', 'KOTON.IS', 'KPEKS.IS', 'KRDMA.IS', 'KRDMB.IS',
+    'KRDMD.IS', 'KRGYO.IS', 'KRONT.IS', 'KRPLS.IS', 'KRSTL.IS', 'KRTEK.IS', 'KRVGD.IS', 'KSTUR.IS', 'KTLEV.IS', 'KTSKR.IS',
+    'KUTPO.IS', 'KUVVA.IS', 'KUYAS.IS', 'KZBGY.IS', 'KZGYO.IS', 'LIDER.IS', 'LIDFA.IS', 'LILAK.IS', 'LINK.IS', 'LKMNH.IS',
+    'LMKDC.IS', 'LOGO.IS', 'LRSHO.IS', 'LUKSK.IS', 'LXGYO.IS', 'LYDHO.IS', 'LYDYE.IS', 'MAALT.IS', 'MACKO.IS', 'MAGEN.IS',
+    'MAKIM.IS', 'MAKTK.IS', 'MANAS.IS', 'MARBL.IS', 'MARMR.IS', 'MARTI.IS', 'MASFN.IS', 'MAVI.IS', 'MCARD.IS', 'MEDTR.IS',
+    'MEGAP.IS', 'MEGMT.IS', 'MEKAG.IS', 'MEPET.IS', 'MERCN.IS', 'MERIT.IS', 'MERKO.IS', 'METEN.IS', 'METRO.IS', 'MEYSU.IS',
+    'MGROS.IS', 'MHRGY.IS', 'MIATK.IS', 'MMCAS.IS', 'MNDRS.IS', 'MNDTR.IS', 'MOBTL.IS', 'MOGAN.IS', 'MOPAS.IS', 'MPARK.IS',
+    'MRGYO.IS', 'MRSHL.IS', 'MSGYO.IS', 'MTRKS.IS', 'MTRYO.IS', 'MZHLD.IS', 'NATEN.IS', 'NETAS.IS', 'NETCD.IS', 'NIBAS.IS',
+    'NTGAZ.IS', 'NTHOL.IS', 'NUGYO.IS', 'NUHCM.IS', 'OBAMS.IS', 'OBASE.IS', 'ODAS.IS', 'ODINE.IS', 'OFSYM.IS', 'ONCSM.IS',
+    'ONRYT.IS', 'ORCAY.IS', 'ORGE.IS', 'ORMA.IS', 'ORZAX.IS', 'OSMEN.IS', 'OSTIM.IS', 'OTKAR.IS', 'OTTO.IS', 'OYAKC.IS',
+    'OYAYO.IS', 'OYLUM.IS', 'OYYAT.IS', 'OZATD.IS', 'OZGYO.IS', 'OZKGY.IS', 'OZRDN.IS', 'OZSUB.IS', 'OZYSR.IS', 'PAGYO.IS',
+    'PAHOL.IS', 'PAMEL.IS', 'PAPIL.IS', 'PARSN.IS', 'PASEU.IS', 'PATEK.IS', 'PCILT.IS', 'PEKGY.IS', 'PENGD.IS', 'PENTA.IS',
+    'PETKM.IS', 'PETUN.IS', 'PGSUS.IS', 'PINSU.IS', 'PKART.IS', 'PKENT.IS', 'PLTUR.IS', 'PNLSN.IS', 'PNSUT.IS', 'POLHO.IS',
+    'POLTK.IS', 'PRDGS.IS', 'PRKAB.IS', 'PRKME.IS', 'PRZMA.IS', 'PSDTC.IS', 'PSGYO.IS', 'QNBFK.IS', 'QNBTR.IS', 'QUAGR.IS',
+    'QUICK.IS', 'RALYH.IS', 'RAYSG.IS', 'REEDR.IS', 'RGYAS.IS', 'RNPOL.IS', 'RODRG.IS', 'RTALB.IS', 'RUBNS.IS', 'RUZYE.IS',
+    'RYGYO.IS', 'RYSAS.IS', 'SAFKR.IS', 'SAHOL.IS', 'SAMAT.IS', 'SANEL.IS', 'SANFM.IS', 'SANKO.IS', 'SARAE.IS', 'SARKY.IS',
+    'SASA.IS', 'SAYAS.IS', 'SDTTR.IS', 'SEGMN.IS', 'SEGYO.IS', 'SEKFK.IS', 'SEKUR.IS', 'SELEC.IS', 'SELVA.IS', 'SERNT.IS',
+    'SEYKM.IS', 'SILVR.IS', 'SISE.IS', 'SKBNK.IS', 'SKTAS.IS', 'SKYLP.IS', 'SKYMD.IS', 'SMART.IS', 'SMRTG.IS', 'SMRVA.IS',
+    'SNGYO.IS', 'SNICA.IS', 'SNPAM.IS', 'SODSN.IS', 'SOHOE.IS', 'SOKE.IS', 'SOKM.IS', 'SONME.IS', 'SRVGY.IS', 'SSAAT.IS',
+    'SUMAS.IS', 'SUNTK.IS', 'SURGY.IS', 'SUWEN.IS', 'SVGYO.IS', 'TABGD.IS', 'TARKM.IS', 'TATEN.IS', 'TATGD.IS', 'TAVHL.IS',
+    'TBORG.IS', 'TCELL.IS', 'TCKRC.IS', 'TDGYO.IS', 'TEHOL.IS', 'TEKTU.IS', 'TERA.IS', 'TEZOL.IS', 'TGSAS.IS', 'THYAO.IS',
+    'TKFEN.IS', 'TKNKA.IS', 'TKNSA.IS', 'TLMAN.IS', 'TMPOL.IS', 'TMSN.IS', 'TNZTP.IS', 'TOASO.IS', 'TRALT.IS', 'TRCAS.IS',
+    'TRENJ.IS', 'TRGYO.IS', 'TRHOL.IS', 'TRILC.IS', 'TRMET.IS', 'TSGYO.IS', 'TSKB.IS', 'TSPOR.IS', 'TTKOM.IS', 'TTRAK.IS',
+    'TUCLK.IS', 'TUKAS.IS', 'TUPRS.IS', 'TUREX.IS', 'TURGG.IS', 'TURSG.IS', 'UCAYM.IS', 'UFUK.IS', 'ULAS.IS', 'ULKER.IS',
+    'ULUFA.IS', 'ULUSE.IS', 'ULUUN.IS', 'UMPAS.IS', 'UNLU.IS', 'USAK.IS', 'USHOL.IS', 'VAKBN.IS', 'VAKFA.IS', 'VAKFN.IS',
+    'VAKKO.IS', 'VANGD.IS', 'VBTYZ.IS', 'VERTU.IS', 'VERUS.IS', 'VESBE.IS', 'VESTL.IS', 'VEYAS.IS', 'VKFYO.IS', 'VKGYO.IS',
+    'VKING.IS', 'VRGYO.IS', 'VSNMD.IS', 'YAPRK.IS', 'YATAS.IS', 'YAYLA.IS', 'YBTAS.IS', 'YEOTK.IS', 'YESIL.IS', 'YGGYO.IS',
+    'YIGIT.IS', 'YKBNK.IS', 'YKSLN.IS', 'YONGA.IS', 'YUNSA.IS', 'YYAPI.IS', 'YYLGD.IS', 'ZEDUR.IS', 'ZERGY.IS', 'ZGYO.IS',
+    'ZOREN.IS', 'ZRGYO.IS'
+]
+
+def sinyalleri_yukle():
+    bugun = datetime.now().strftime('%Y-%m-%d')
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data.get('_tarih') != bugun:
+                    return {'_tarih': bugun}
+                return data
+        except Exception:
+            return {'_tarih': bugun}
+    return {'_tarih': bugun}
+
+def sinyalleri_kaydet(state):
+    try:
+        with open(STATE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(state, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f'Durum dosyası kaydedilemedi: {e}')
+
+# --- İNDİKATÖR HESAPLAMALARI ---
+def hesapla_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
+def hesapla_adx_di(df, period=14):
+    df = df.copy()
+    df['H-L'] = df['High'] - df['Low']
+    df['H-PC'] = abs(df['High'] - df['Close'].shift(1))
+    df['L-PC'] = abs(df['Low'] - df['Close'].shift(1))
+    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+
+    df['+DM'] = np.where((df['High'] - df['High'].shift(1)) > (df['Low'].shift(1) - df['Low']), np.maximum(df['High'] - df['High'].shift(1), 0), 0)
+    df['-DM'] = np.where((df['Low'].shift(1) - df['Low']) > (df['High'] - df['High'].shift(1)), np.maximum(df['Low'].shift(1) - df['Low'], 0), 0)
+
+    tr_smooth = df['TR'].rolling(window=period).sum()
+    plus_di = 100 * (df['+DM'].rolling(window=period).sum() / tr_smooth)
+    minus_di = 100 * (df['-DM'].rolling(window=period).sum() / tr_smooth)
+
+    return plus_di, minus_di
+
+def hesapla_obv(df):
+    return (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+
+def telegram_mesaj_gonder(mesaj):
+    if not TELEGRAM_AKTIF:
+        return
+    try:
+        url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+        payload = {
+            'chat_id': TELEGRAM_CHAT_ID,
+            'text': mesaj,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': True
+        }
+        requests.post(url, json=payload, timeout=5)
+    except Exception as e:
+        print(f'Telegram mesajı gönderilemedi: {e}')
+
+results = []
+gonderilenler = sinyalleri_yukle()
+
+print(f'🔍 Tarama Başlatılıyor ({len(ticker_symbols)} Hisse)...')
+
+CHUNK_SIZE = 50
+all_data_15m = pd.DataFrame()
+
+for i in range(0, len(ticker_symbols), CHUNK_SIZE):
+    chunk = ticker_symbols[i:i + CHUNK_SIZE]
+    try:
+        data_chunk = yf.download(
+            tickers=chunk,
+            period='10d',
+            interval='15m',
+            group_by='ticker',
+            progress=False
+        )
+        if all_data_15m.empty:
+            all_data_15m = data_chunk
+        else:
+            all_data_15m = pd.concat([all_data_15m, data_chunk], axis=1)
+    except Exception as e:
+        print(f'Grup veri indirme hatası: {e}')
+
+def df_get(data_source, symbol):
+    try:
+        if isinstance(data_source.columns, pd.MultiIndex):
+            if symbol in data_source.columns.levels[0]:
+                df = data_source[symbol].copy()
+            else:
+                return pd.DataFrame()
+        else:
+            df = data_source.copy()
+
+        df = df.dropna(subset=['Close'])
+        if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
+    ticker = ticker_symbol.replace('.IS', '')
+    try:
+        df_15m = df_get(all_data_15m, ticker_symbol)
+
+        if df_15m.empty or len(df_15m) < 30:
+            continue
+
+        df_30m = df_15m.resample('30Min', closed='left', label='left').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last',
+            'Volume': 'sum'
+        }).dropna()
+
+        def yeni_strateji_filtrele(df):
+            df['EMA5'] = df['Close'].ewm(span=5, adjust=False).mean()
+            df['EMA8'] = df['Close'].ewm(span=8, adjust=False).mean()
+            df['SMA20'] = df['Close'].rolling(window=20).mean()
+            df['DI_PLUS'], df['DI_MINUS'] = hesapla_adx_di(df, 14)
+            df['RSI'] = hesapla_rsi(df['Close'], 14)
+            df['OBV'] = hesapla_obv(df)
+
+            if len(df) < 25:
+                return False, {}
+
+            c_curr = df['Close'].iloc[-1]
+
+            ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
+            ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
+            ema_ustte = ema5_c > ema8_c
+            ema_yeni_kesisim = (ema5_c > ema8_c) and (df['EMA5'].iloc[-3] <= df['EMA8'].iloc[-3] or ema5_p <= ema8_p)
+
+            sma20_c = df['SMA20'].iloc[-1]
+            fiyat_sma_ustu = c_curr > sma20_c
+
+            di_p_c, di_m_c = df['DI_PLUS'].iloc[-1], df['DI_MINUS'].iloc[-1]
+            di_pozitif = di_p_c > di_m_c
+
+            rsi_c, rsi_p = df['RSI'].iloc[-1], df['RSI'].iloc[-2]
+            rsi_ok = (rsi_c >= 48) and (rsi_c > rsi_p)
+
+            obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
+            obv_ok = obv_c > obv_p
+
+            tam_uyum = ema_yeni_kesisim and ema_ustte and fiyat_sma_ustu and di_pozitif and rsi_ok and obv_ok
+
+            if not tam_uyum:
+                return False, {}
+
+            detaylar = {
+                'Fiyat': c_curr,
+                'EMA5': ema5_c,
+                'EMA8': ema8_c,
+                'SMA20': sma20_c,
+                'DI+': di_p_c,
+                'DI-': di_m_c,
+                'RSI': rsi_c,
+            }
+
+            return True, detaylar
+
+        periyotlar = []
+        if TARAMA_15DK:
+            periyotlar.append(('15 Dakikalık', df_15m, '15M'))
+        if TARAMA_30DK:
+            periyotlar.append(('30 Dakikalık', df_30m, '30M'))
+
+        for periyot_adi, df_periyot, periyot_kod in periyotlar:
+            sinyal_var, detay = yeni_strateji_filtrele(df_periyot)
+
+            if sinyal_var:
+                son_fiyat = float(df_periyot['Close'].iloc[-1])
+                mum_zaman = pd.to_datetime(df_periyot.index[-1])
+                mum_zaman_str = mum_zaman.strftime('%Y%m%d_%H%M')
+
+                sinyal_id = f'{ticker}_{periyot_kod}_YENI_STRATEJI_{mum_zaman_str}'
+
+                bilgi = {
+                    'Hisse': ticker,
+                    'Son Fiyat': round(son_fiyat, 2),
+                    'Periyot': periyot_adi,
+                    'RSI': round(detay['RSI'], 2),
+                    'SMA20': round(detay['SMA20'], 2),
+                    'Tarih': str(mum_zaman)
+                }
+                results.append(bilgi)
+
+                if sinyal_id not in gonderilenler:
+                    tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
+                    msg = (
+                        f'🚀 *{periyot_kod} AL SİNYALİ*\n'
+                        f'*Hisse:* `{ticker}`\n'
+                        f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
+                        f'📊 *Periyot:* `{periyot_adi}`\n\n'
+                        f'✅ EMA 5 x EMA 8 Yukarı Kesti\n'
+                        f'✅ Fiyat > SMA(20) Üstünde (`{detay["SMA20"]:.2f}`)\n'
+                        f'✅ DI+ > DI- Pozitif Bölgede\n'
+                        f'✅ RSI >= 48 ve Artıyor (`{detay["RSI"]:.1f}`)\n'
+                        f'✅ OBV Yönü Yukarı\n\n'
+                        f'🔗 [TradingView Grafiği Aç]({tv_link})'
+                    )
+                    telegram_mesaj_gonder(msg)
+                    gonderilenler[sinyal_id] = True
+                    time.sleep(0.02)
+
+    except Exception:
+        pass
+
+sinyalleri_kaydet(gonderilenler)
+
+if results:
+    df_results = pd.DataFrame(results)
+    excel_filename = 'Yeni_Strateji_15m_30m_Sonuclari.xlsx'
+    df_results.to_excel(excel_filename, index=False)
+    print(f'\n✅ Tarama tamamlandı! {len(results)} sinyal bulundu.')
+else:
+    print('\n⚠ Şartları sağlayan hisse çıkmadı.')
