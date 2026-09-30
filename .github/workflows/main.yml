@@ -26,4 +26,4 @@ jobs:
 
     - name: Tarama Scriptini Çalıştır
       run: |
-        python tarama.py
+        python Scanner.py
