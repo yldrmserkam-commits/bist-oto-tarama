@@ -1,38 +1,32 @@
-name: Crypto Signal Bot
+name: BIST Otomatik 15m/30m Taramasi
 
 on:
   schedule:
-    # Her saatin 03, 17, 32 ve 47. dakikalarında çalışır
-    - cron: '3,17,32,47 * * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write # GitHub deposuna yazma ve güncelleme izni verir
+    # Her saatin 11 ve 40. dakikalarında çalışır (UTC)
+    - cron: '11,40 * * * *'
+  workflow_dispatch: # GitHub panelinden manuel çalıştırabilmek için
 
 jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  tarama_job:
+    runs-on: ubuntu-24.04
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+    steps:
+      - name: Repoyu Klonla
+        uses: actions/checkout@v5
+
+      - name: Python Ortamını Kur
+        uses: actions/setup-python@v6
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Bağımlılıkları Yükle
         run: |
           python -m pip install --upgrade pip
-          python -m pip install yfinance pandas numpy requests tqdm openpyxl
+          pip install yfinance pandas numpy requests openpyxl tqdm
 
-      - name: Run bot script
+      - name: Tarama Kodunu Çalıştır
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python bot.py
-
-      - name: Commit and push changes if new signals found
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add kripto_gonderilen_sinyaller.json || true
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update sent signals history [skip ci]" && git push)
+          python tarama.py
