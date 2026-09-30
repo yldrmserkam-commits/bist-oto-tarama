@@ -23,11 +23,14 @@ warnings.filterwarnings('ignore')
 
 STATE_FILE = 'gonderilen_yeni_strateji_sinyalleri.json'
 
-# --- PERİYOT AYARLARI (Sadece 15dk ve 30dk Aktif) ---
+# --- PERİYOT AYARLARI ---
 TARAMA_15DK = True
 TARAMA_30DK = True
-TARAMA_1SAATLIK = False
-TARAMA_4SAATLIK = False
+
+# --- TELEGRAM AYARLARI ---
+TELEGRAM_AKTIF = True
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8911263447:AAHoyIaowzRMAD0SYrZqKQnx3BGv4Sv3dLs')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '889982961')
 
 # --- 500+ BİST HİSSE LİSTESİ ---
 ticker_symbols = [
@@ -117,7 +120,7 @@ def sinyalleri_kaydet(state):
     except Exception as e:
         print(f'Durum dosyası kaydedilemedi: {e}')
 
-# --- İNDİKATÖR HESAPLAMA FONKSİYONLARI ---
+# --- İNDİKATÖR HESAPLAMALARI ---
 def hesapla_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -142,12 +145,7 @@ def hesapla_adx_di(df, period=14):
     return plus_di, minus_di
 
 def hesapla_obv(df):
-    obv = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
-    return obv
-
-TELEGRAM_AKTIF = True
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '8911263447:AAHoyIaowzRMAD0SYrZqKQnx3BGv4Sv3dLs')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '889982961')
+    return (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
 
 def telegram_mesaj_gonder(mesaj):
     if not TELEGRAM_AKTIF:
@@ -167,9 +165,9 @@ def telegram_mesaj_gonder(mesaj):
 results = []
 gonderilenler = sinyalleri_yukle()
 
-print(f'🔍 15dk & 30dk Taraması Başlatılıyor ({len(ticker_symbols)} Hisse)...')
+print(f'🔍 Tarama Başlatılıyor ({len(ticker_symbols)} Hisse)...')
 
-CHUNK_SIZE = 100
+CHUNK_SIZE = 50
 all_data_15m = pd.DataFrame()
 
 for i in range(0, len(ticker_symbols), CHUNK_SIZE):
@@ -177,7 +175,7 @@ for i in range(0, len(ticker_symbols), CHUNK_SIZE):
     try:
         data_chunk = yf.download(
             tickers=chunk,
-            period='30d',
+            period='10d',
             interval='15m',
             group_by='ticker',
             progress=False
@@ -191,25 +189,30 @@ for i in range(0, len(ticker_symbols), CHUNK_SIZE):
 
 def df_get(data_source, symbol):
     try:
-        if symbol in data_source.columns.levels[0]:
-            df = data_source[symbol].copy()
-            if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
-                df.index = df.index.tz_localize(None)
-            return df
-        return pd.DataFrame()
+        if isinstance(data_source.columns, pd.MultiIndex):
+            if symbol in data_source.columns.levels[0]:
+                df = data_source[symbol].copy()
+            else:
+                return pd.DataFrame()
+        else:
+            df = data_source.copy()
+
+        df = df.dropna(subset=['Close'])
+        if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        return df
     except Exception:
         return pd.DataFrame()
 
 for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
     ticker = ticker_symbol.replace('.IS', '')
     try:
-        df_15m = df_get(all_data_15m, ticker_symbol).dropna(how='all')
+        df_15m = df_get(all_data_15m, ticker_symbol)
 
         if df_15m.empty or len(df_15m) < 30:
             continue
 
-        # 30 Dakikalık Periyot Oluşturma
-        df_30m = df_15m.resample('30m').agg({
+        df_30m = df_15m.resample('30Min', closed='left', label='left').agg({
             'Open': 'first',
             'High': 'max',
             'Low': 'min',
@@ -230,30 +233,24 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
 
             c_curr = df['Close'].iloc[-1]
 
-            # 1. EMA5, EMA8'i yukarı kessin
             ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
             ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
-            ema_kesisim = (ema5_c > ema8_c) and (ema5_p <= ema8_p)
+            ema_ustte = ema5_c > ema8_c
+            ema_yeni_kesisim = (ema5_c > ema8_c) and (df['EMA5'].iloc[-3] <= df['EMA8'].iloc[-3] or ema5_p <= ema8_p)
 
-            # 2. Fiyat SMA(20) üstünde olsun
             sma20_c = df['SMA20'].iloc[-1]
             fiyat_sma_ustu = c_curr > sma20_c
 
-            # 3. DI+ x DI- Yukarı kessin
-            di_p_c, di_p_p = df['DI_PLUS'].iloc[-1], df['DI_PLUS'].iloc[-2]
-            di_m_c, di_m_p = df['DI_MINUS'].iloc[-1], df['DI_MINUS'].iloc[-2]
-            di_kesisim = (di_p_c > di_m_c) and (di_p_p <= di_m_p)
+            di_p_c, di_m_c = df['DI_PLUS'].iloc[-1], df['DI_MINUS'].iloc[-1]
+            di_pozitif = di_p_c > di_m_c
 
-            # 4. RSI 48 ve üstünde olsun, ivmesi yukarı yönlü olsun
-            rsi_c = df['RSI'].iloc[-1]
-            rsi_p = df['RSI'].iloc[-2]
+            rsi_c, rsi_p = df['RSI'].iloc[-1], df['RSI'].iloc[-2]
             rsi_ok = (rsi_c >= 48) and (rsi_c > rsi_p)
 
-            # 5. OBV yukarı yönlü olsun
             obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
             obv_ok = obv_c > obv_p
 
-            tam_uyum = ema_kesisim and fiyat_sma_ustu and di_kesisim and rsi_ok and obv_ok
+            tam_uyum = ema_yeni_kesisim and ema_ustte and fiyat_sma_ustu and di_pozitif and rsi_ok and obv_ok
 
             if not tam_uyum:
                 return False, {}
@@ -299,13 +296,13 @@ for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
                 if sinyal_id not in gonderilenler:
                     tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
                     msg = (
-                        f'🚀 *15M/30M AL SİNYALİ*\n'
+                        f'🚀 *{periyot_kod} AL SİNYALİ*\n'
                         f'*Hisse:* `{ticker}`\n'
                         f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
                         f'📊 *Periyot:* `{periyot_adi}`\n\n'
                         f'✅ EMA 5 x EMA 8 Yukarı Kesti\n'
                         f'✅ Fiyat > SMA(20) Üstünde (`{detay["SMA20"]:.2f}`)\n'
-                        f'✅ DI+ x DI- Yukarı Kesti\n'
+                        f'✅ DI+ > DI- Pozitif Bölgede\n'
                         f'✅ RSI >= 48 ve Artıyor (`{detay["RSI"]:.1f}`)\n'
                         f'✅ OBV Yönü Yukarı\n\n'
                         f'🔗 [TradingView Grafiği Aç]({tv_link})'
@@ -323,6 +320,6 @@ if results:
     df_results = pd.DataFrame(results)
     excel_filename = 'Yeni_Strateji_15m_30m_Sonuclari.xlsx'
     df_results.to_excel(excel_filename, index=False)
-    print(f'\n✅ Tarama tamamlandı! 15m ve 30m periyotlarında şartları sağlayan {len(results)} sinyal bulundu.')
+    print(f'\n✅ Tarama tamamlandı! {len(results)} sinyal bulundu.')
 else:
-    print(f'\n⚠ {len(ticker_symbols)} BİST hissesi taranmış olup 15m/30m periyotlarında şartları sağlayan hisse çıkmadı.')
+    print('\n⚠ Şartları sağlayan hisse çıkmadı.')
