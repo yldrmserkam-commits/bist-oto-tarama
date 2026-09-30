@@ -2,9 +2,9 @@ name: BIST Otomatik 15m/30m Taramasi
 
 on:
   schedule:
-    # Her saatin 03, 17, 33 ve 47. dakikalarında çalışır (UTC)
-    - cron: '3,17,33,47 * * * *'
-  workflow_dispatch: # GitHub panelinden manuel çalıştırabilmek için
+    # Her saatin 11 ve 40. dakikalarında çalışır (UTC)
+    - cron: '11,40 * * * *'
+  workflow_dispatch: # GitHub panelinden manuel tetikleyebilmek için
 
 jobs:
   tarama_job:
@@ -30,11 +30,3 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python tarama.py
-
-      - name: Sinyal Durum Dosyasını Güncelle ve Commit Et
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action Bot"
-          git add gonderilen_yeni_strateji_sinyalleri.json Yeni_Strateji_15m_30m_Sonuclari.xlsx || true
-          git diff-index --quiet HEAD || git commit -m "chore: otomatik tarama durumu guncellendi [skip ci]"
-          git push
