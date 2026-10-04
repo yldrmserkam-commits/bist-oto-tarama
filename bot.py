@@ -147,21 +147,6 @@ def hesapla_adx_di(df, period=14):
 def hesapla_obv(df):
     return (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
 
-def telegram_mesaj_gonder(mesaj):
-    if not TELEGRAM_AKTIF:
-        return
-    try:
-        url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
-        payload = {
-            'chat_id': TELEGRAM_CHAT_ID,
-            'text': mesaj,
-            'parse_mode': 'Markdown',
-            'disable_web_page_preview': True
-        }
-        requests.post(url, json=payload, timeout=5)
-    except Exception as e:
-        print(f'Telegram mesajı gönderilemedi: {e}')
-
 def df_get(data_source, symbol):
     try:
         if isinstance(data_source.columns, pd.MultiIndex) and symbol in data_source.columns.levels[0]:
@@ -178,163 +163,172 @@ def df_get(data_source, symbol):
     except Exception:
         return pd.DataFrame()
 
-# --- ANA DÖNGÜ (OTOMATİK ÇALIŞTIRMA) ---
-print("🤖 BIST Tarama Botu Başlatıldı. Her 15 dakikada bir otomatik tarama yapacak...")
-
-while True:
+def telegram_mesaj_gonder(mesaj):
+    if not TELEGRAM_AKTIF:
+        return
     try:
-        print(f'\n🔍 15dk & 30dk Taramalar Başlatılıyor: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} ({len(ticker_symbols)} Hisse)...')
-        
-        results = []
-        gonderilenler = sinyalleri_yukle()
-
-        CHUNK_SIZE = 50 
-        all_data_15m = pd.DataFrame()
-
-        for i in range(0, len(ticker_symbols), CHUNK_SIZE):
-            chunk = ticker_symbols[i:i + CHUNK_SIZE]
-            try:
-                data_chunk = yf.download(
-                    tickers=chunk,
-                    period='30d',
-                    interval='15m',
-                    group_by='ticker',
-                    progress=False,
-                    threads=True
-                )
-                if not data_chunk.empty:
-                    if all_data_15m.empty:
-                        all_data_15m = data_chunk
-                    else:
-                        all_data_15m = pd.concat([all_data_15m, data_chunk], axis=1)
-            except Exception as e:
-                print(f'Grup veri indirme hatası: {e}')
-
-        for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
-            ticker = ticker_symbol.replace('.IS', '')
-            try:
-                df_15m = df_get(all_data_15m, ticker_symbol)
-
-                if df_15m.empty or len(df_15m) < 30:
-                    continue
-
-                # 30 Dakikalık Periyot Oluşturma
-                df_30m = df_15m.resample('30min').agg({
-                    'Open': 'first',
-                    'High': 'max',
-                    'Low': 'min',
-                    'Close': 'last',
-                    'Volume': 'sum'
-                }).dropna()
-
-                def yeni_strateji_filtrele(df):
-                    if len(df) < 25:
-                        return False, {}
-
-                    df = df.copy()
-                    df['EMA5'] = df['Close'].ewm(span=5, adjust=False).mean()
-                    df['EMA8'] = df['Close'].ewm(span=8, adjust=False).mean()
-                    df['SMA20'] = df['Close'].rolling(window=20).mean()
-                    df['DI_PLUS'], df['DI_MINUS'] = hesapla_adx_di(df, 14)
-                    df['RSI'] = hesapla_rsi(df['Close'], 14)
-                    df['OBV'] = hesapla_obv(df)
-
-                    c_curr = df['Close'].iloc[-1]
-
-                    ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
-                    ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
-                    ema_kesisim = (ema5_c > ema8_c) and (ema5_p <= ema8_p)
-
-                    sma20_c = df['SMA20'].iloc[-1]
-                    fiyat_sma_ustu = c_curr > sma20_c
-
-                    di_p_c, di_p_p = df['DI_PLUS'].iloc[-1], df['DI_PLUS'].iloc[-2]
-                    di_m_c, di_m_p = df['DI_MINUS'].iloc[-1], df['DI_MINUS'].iloc[-2]
-                    di_kesisim = (di_p_c > di_m_c) and (di_p_p <= di_m_p)
-
-                    rsi_c = df['RSI'].iloc[-1]
-                    rsi_p = df['RSI'].iloc[-2]
-                    rsi_ok = (rsi_c >= 48) and (rsi_c > rsi_p)
-
-                    obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
-                    obv_ok = obv_c > obv_p
-
-                    tam_uyum = ema_kesisim and fiyat_sma_ustu and di_kesisim and rsi_ok and obv_ok
-
-                    if not tam_uyum:
-                        return False, {}
-
-                    detaylar = {
-                        'Fiyat': c_curr,
-                        'EMA5': ema5_c,
-                        'EMA8': ema8_c,
-                        'SMA20': sma20_c,
-                        'DI+': di_p_c,
-                        'DI-': di_m_c,
-                        'RSI': rsi_c,
-                    }
-
-                    return True, detaylar
-
-                periyotlar = []
-                if TARAMA_15DK:
-                    periyotlar.append(('15 Dakikalık', df_15m, '15M'))
-                if TARAMA_30DK:
-                    periyotlar.append(('30 Dakikalık', df_30m, '30M'))
-
-                for periyot_adi, df_periyot, periyot_kod in periyotlar:
-                    sinyal_var, detay = yeni_strateji_filtrele(df_periyot)
-
-                    if sinyal_var:
-                        son_fiyat = float(df_periyot['Close'].iloc[-1])
-                        mum_zaman = pd.to_datetime(df_periyot.index[-1])
-                        mum_zaman_str = mum_zaman.strftime('%Y%m%d_%H%M')
-
-                        sinyal_id = f'{ticker}_{periyot_kod}_YENI_STRATEJI_{mum_zaman_str}'
-
-                        bilgi = {
-                            'Hisse': ticker,
-                            'Son Fiyat': round(son_fiyat, 2),
-                            'Periyot': periyot_adi,
-                            'RSI': round(detay['RSI'], 2),
-                            'SMA20': round(detay['SMA20'], 2),
-                            'Tarih': str(mum_zaman)
-                        }
-                        results.append(bilgi)
-
-                        if sinyal_id not in gonderilenler:
-                            tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
-                            msg = (
-                                f'🚀 *BIST AL SİNYALİ*\n'
-                                f'*Hisse:* `{ticker}`\n'
-                                f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
-                                f'📊 *Periyot:* `{periyot_adi}`\n\n'
-                                f'✅ EMA 5 x EMA 8 Yukarı Kesti\n'
-                                f'✅ Fiyat > SMA(20) Üstünde (`{detay["SMA20"]:.2f}`)\n'
-                                f'✅ DI+ x DI- Yukarı Kesti\n'
-                                f'✅ RSI >= 48 ve Artıyor (`{detay["RSI"]:.1f}`)\n'
-                                f'✅ OBV Yönü Yukarı\n\n'
-                                f'🔗 [TradingView Grafiği Aç]({tv_link})'
-                            )
-                            telegram_mesaj_gonder(msg)
-                            gonderilenler[sinyal_id] = True
-                            time.sleep(0.02)
-
-            except Exception:
-                pass
-
-        sinyalleri_kaydet(gonderilenler)
-
-        if results:
-            df_results = pd.DataFrame(results)
-            excel_filename = 'Yeni_Strateji_Tum_Periyotlar_Sonuclari.xlsx'
-            df_results.to_excel(excel_filename, index=False)
-            print(f'\n✅ Tarama tamamlandı! Şartları sağlayan {len(results)} sinyal bulundu ve Excel\'e kaydedildi.')
-        else:
-            print(f'\n⚠ Şartları sağlayan hisse çıkmadı.')
-
+        url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+        payload = {
+            'chat_id': TELEGRAM_CHAT_ID,
+            'text': mesaj,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': True
+        }
+        requests.post(url, json=payload, timeout=5)
     except Exception as e:
-        print(f'❌ Döngü sırasında hata oluştu: {e}')
+        print(f'Telegram mesajı gönderilemedi: {e}')
 
-    print('\n⏳ Sonraki tarama için 15 dakika bekleniyor...\n')
-    time.sleep(900)
+# --- TEK TUR ÇALIŞTIRMA (GİTHUB ACTIONS UYUMLU) ---
+print(f'🤖 BIST Tarama Botu Başlatıldı: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} ({len(ticker_symbols)} Hisse)...')
+
+try:
+    results = []
+    gonderilenler = sinyalleri_yukle()
+
+    CHUNK_SIZE = 50 
+    all_data_15m = pd.DataFrame()
+
+    for i in range(0, len(ticker_symbols), CHUNK_SIZE):
+        chunk = ticker_symbols[i:i + CHUNK_SIZE]
+        try:
+            data_chunk = yf.download(
+                tickers=chunk,
+                period='30d',
+                interval='15m',
+                group_by='ticker',
+                progress=False,
+                threads=True
+            )
+            if not data_chunk.empty:
+                if all_data_15m.empty:
+                    all_data_15m = data_chunk
+                else:
+                    all_data_15m = pd.concat([all_data_15m, data_chunk], axis=1)
+        except Exception as e:
+            print(f'Grup veri indirme hatası: {e}')
+
+    for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
+        ticker = ticker_symbol.replace('.IS', '')
+        try:
+            df_15m = df_get(all_data_15m, ticker_symbol)
+
+            if df_15m.empty or len(df_15m) < 30:
+                continue
+
+            # 30 Dakikalık Periyot Oluşturma
+            df_30m = df_15m.resample('30min').agg({
+                'Open': 'first',
+                'High': 'max',
+                'Low': 'min',
+                'Close': 'last',
+                'Volume': 'sum'
+            }).dropna()
+
+            def yeni_strateji_filtrele(df):
+                if len(df) < 25:
+                    return False, {}
+
+                df = df.copy()
+                df['EMA5'] = df['Close'].ewm(span=5, adjust=False).mean()
+                df['EMA8'] = df['Close'].ewm(span=8, adjust=False).mean()
+                df['SMA20'] = df['Close'].rolling(window=20).mean()
+                df['DI_PLUS'], df['DI_MINUS'] = hesapla_adx_di(df, 14)
+                df['RSI'] = hesapla_rsi(df['Close'], 14)
+                df['OBV'] = hesapla_obv(df)
+
+                c_curr = df['Close'].iloc[-1]
+
+                ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
+                ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
+                ema_kesisim = (ema5_c > ema8_c) and (ema5_p <= ema8_p)
+
+                sma20_c = df['SMA20'].iloc[-1]
+                fiyat_sma_ustu = c_curr > sma20_c
+
+                di_p_c, di_p_p = df['DI_PLUS'].iloc[-1], df['DI_PLUS'].iloc[-2]
+                di_m_c, di_m_p = df['DI_MINUS'].iloc[-1], df['DI_MINUS'].iloc[-2]
+                di_kesisim = (di_p_c > di_m_c) and (di_p_p <= di_m_p)
+
+                rsi_c = df['RSI'].iloc[-1]
+                rsi_p = df['RSI'].iloc[-2]
+                rsi_ok = (rsi_c >= 48) and (rsi_c > rsi_p)
+
+                obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
+                obv_ok = obv_c > obv_p
+
+                tam_uyum = ema_kesisim and fiyat_sma_ustu and di_kesisim and rsi_ok and obv_ok
+
+                if not tam_uyum:
+                    return False, {}
+
+                detaylar = {
+                    'Fiyat': c_curr,
+                    'EMA5': ema5_c,
+                    'EMA8': ema8_c,
+                    'SMA20': sma20_c,
+                    'DI+': di_p_c,
+                    'DI-': di_m_c,
+                    'RSI': rsi_c,
+                }
+
+                return True, detaylar
+
+            periyotlar = []
+            if TARAMA_15DK:
+                periyotlar.append(('15 Dakikalık', df_15m, '15M'))
+            if TARAMA_30DK:
+                periyotlar.append(('30 Dakikalık', df_30m, '30M'))
+
+            for periyot_adi, df_periyot, periyot_kod in periyotlar:
+                sinyal_var, detay = yeni_strateji_filtrele(df_periyot)
+
+                if sinyal_var:
+                    son_fiyat = float(df_periyot['Close'].iloc[-1])
+                    mum_zaman = pd.to_datetime(df_periyot.index[-1])
+                    mum_zaman_str = mum_zaman.strftime('%Y%m%d_%H%M')
+
+                    sinyal_id = f'{ticker}_{periyot_kod}_YENI_STRATEJI_{mum_zaman_str}'
+
+                    bilgi = {
+                        'Hisse': ticker,
+                        'Son Fiyat': round(son_fiyat, 2),
+                        'Periyot': periyot_adi,
+                        'RSI': round(detay['RSI'], 2),
+                        'SMA20': round(detay['SMA20'], 2),
+                        'Tarih': str(mum_zaman)
+                    }
+                    results.append(bilgi)
+
+                    if sinyal_id not in gonderilenler:
+                        tv_link = f'https://www.tradingview.com/chart/?symbol=BIST:{ticker}'
+                        msg = (
+                            f'🚀 *BIST AL SİNYALİ*\n'
+                            f'*Hisse:* `{ticker}`\n'
+                            f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
+                            f'📊 *Periyot:* `{periyot_adi}`\n\n'
+                            f'✅ EMA 5 x EMA 8 Yukarı Kesti\n'
+                            f'✅ Fiyat > SMA(20) Üstünde (`{detay["SMA20"]:.2f}`)\n'
+                            f'✅ DI+ x DI- Yukarı Kesti\n'
+                            f'✅ RSI >= 48 ve Artıyor (`{detay["RSI"]:.1f}`)\n'
+                            f'✅ OBV Yönü Yukarı\n\n'
+                            f'🔗 [TradingView Grafiği Aç]({tv_link})'
+                        )
+                        telegram_mesaj_gonder(msg)
+                        gonderilenler[sinyal_id] = True
+                        time.sleep(0.02)
+
+        except Exception:
+            pass
+
+    sinyalleri_kaydet(gonderilenler)
+
+    if results:
+        df_results = pd.DataFrame(results)
+        excel_filename = 'Yeni_Strateji_Tum_Periyotlar_Sonuclari.xlsx'
+        df_results.to_excel(excel_filename, index=False)
+        print(f'\n✅ Tarama tamamlandı! Şartları sağlayan {len(results)} sinyal bulundu ve Excel\'e kaydedildi.')
+    else:
+        print(f'\n⚠ Şartları sağlayan hisse çıkmadı.')
+
+except Exception as e:
+    print(f'❌ Tarama sırasında hata oluştu: {e}')
