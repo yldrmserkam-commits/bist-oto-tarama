@@ -31,9 +31,9 @@ TARAMA_1SAAT = False  # 1 Saatlik periyot kapalı
 # --- TELEGRAM AYARLARI ---
 TELEGRAM_AKTIF = True
 TELEGRAM_BOT_TOKEN = '8488715417:AAEPtM07hXwFa5NXl7xwwrM0PX30Xd_VzSE'
-TELEGRAM_CHAT_ID = '889982961'  # Mevcut Chat ID'niz korundu
+TELEGRAM_CHAT_ID = '889982961'
 
-# --- 500+ BİST HİSSE LİSTESİ ---
+# --- BİST HİSSE LİSTESİ ---
 ticker_symbols = [
     'A1CAP.IS', 'A1YEN.IS', 'AAGYO.IS', 'ACSEL.IS', 'ADEL.IS', 'ADESE.IS', 'ADGYO.IS', 'AEFES.IS', 'AFYON.IS', 'AGESA.IS',
     'AGHOL.IS', 'AGROT.IS', 'AGYO.IS', 'AHGAZ.IS', 'AHSGY.IS', 'AKBNK.IS', 'AKCNS.IS', 'AKENR.IS', 'AKFGY.IS', 'AKFIS.IS',
@@ -185,27 +185,36 @@ try:
     results = []
     gonderilenler = sinyalleri_yukle()
 
-    CHUNK_SIZE = 50 
+    CHUNK_SIZE = 30  # Sunucu yükünü azaltmak için grup boyutu küçültüldü
     all_data_15m = pd.DataFrame()
 
     for i in range(0, len(ticker_symbols), CHUNK_SIZE):
         chunk = ticker_symbols[i:i + CHUNK_SIZE]
-        try:
-            data_chunk = yf.download(
-                tickers=chunk,
-                period='30d',
-                interval='15m',
-                group_by='ticker',
-                progress=False,
-                threads=True
-            )
-            if not data_chunk.empty:
-                if all_data_15m.empty:
-                    all_data_15m = data_chunk
-                else:
-                    all_data_15m = pd.concat([all_data_15m, data_chunk], axis=1)
-        except Exception as e:
-            print(f'Grup veri indirme hatası: {e}')
+        basarili = False
+        
+        # 500 hatasına karşı 3 kez tekrar deneme (Retry) mekanizması
+        for deneme in range(3):
+            try:
+                data_chunk = yf.download(
+                    tickers=chunk,
+                    period='30d',
+                    interval='15m',
+                    group_by='ticker',
+                    progress=False,
+                    threads=False # GitHub Actions IP bloklanmasını önlemek için threads kapatıldı
+                )
+                if not data_chunk.empty:
+                    if all_data_15m.empty:
+                        all_data_15m = data_chunk
+                    else:
+                        all_data_15m = pd.concat([all_data_15m, data_chunk], axis=1)
+                basarili = True
+                break
+            except Exception as e:
+                print(f"Uyarı: Grup indirilemedi (Deneme {deneme+1}/3): {e}")
+                time.sleep(2) # Hata alırsan 2 saniye bekle ve tekrar dene
+                
+        time.sleep(1) # Gruplar arası Yahoo sunucusunu rahatlatmak için kısa bekleme
 
     for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
         ticker = ticker_symbol.replace('.IS', '')
