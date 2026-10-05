@@ -4,11 +4,11 @@ on:
   schedule:
     # Her saatin 03, 17, 33 ve 47. dakikalarında çalışır (UTC)
     - cron: '3,17,33,47 * * * *'
-  workflow_dispatch: # GitHub panelinden manuel çalıştırabilmek için
+  workflow_dispatch:
 
 jobs:
   run-bot:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Repoyu Kopyala
         uses: actions/checkout@v4
