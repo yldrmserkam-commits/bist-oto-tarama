@@ -147,6 +147,29 @@ def hesapla_adx_di(df, period=14):
 def hesapla_obv(df):
     return (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
 
+def hesapla_smi(df, length=14, smooth1=3, smooth2=3):
+    # Stochastic Momentum Index (SMI) hesaplaması
+    highest_high = df['High'].rolling(window=length).max()
+    lowest_low = df['Low'].rolling(window=length).min()
+    
+    diff = highest_high - lowest_low
+    diff = diff.replace(0, np.nan) # Sıfıra bölünmeyi önle
+    
+    # Fark (Close - (Highest High + Lowest Low) / 2)
+    hl_mid = (highest_high + lowest_low) / 2
+    smi_val = df['Close'] - hl_mid
+    
+    # Çift katlı EMA yumuşatmaları (TradingView standartlarına yakın)
+    smi_smooth = smi_val.ewm(span=smooth1, adjust=False).mean().ewm(span=smooth2, adjust=False).mean()
+    diff_smooth = (diff / 2).ewm(span=smooth1, adjust=False).mean().ewm(span=smooth2, adjust=False).mean()
+    
+    diff_smooth = diff_smooth.replace(0, np.nan)
+    smi = (smi_smooth / diff_smooth) * 100
+    
+    # Sinyal çizgisi (genellikle 5 veya 10 periyotluk EMA)
+    smi_signal = smi.ewm(span=5, adjust=False).mean()
+    return smi, smi_signal
+
 def df_get(data_source, symbol):
     try:
         if isinstance(data_source.columns, pd.MultiIndex) and symbol in data_source.columns.levels[0]:
@@ -185,14 +208,13 @@ try:
     results = []
     gonderilenler = sinyalleri_yukle()
 
-    CHUNK_SIZE = 30  # Sunucu yükünü azaltmak için grup boyutu küçültüldü
+    CHUNK_SIZE = 30  
     all_data_15m = pd.DataFrame()
 
     for i in range(0, len(ticker_symbols), CHUNK_SIZE):
         chunk = ticker_symbols[i:i + CHUNK_SIZE]
         basarili = False
         
-        # 500 hatasına karşı 3 kez tekrar deneme (Retry) mekanizması
         for deneme in range(3):
             try:
                 data_chunk = yf.download(
@@ -201,7 +223,7 @@ try:
                     interval='15m',
                     group_by='ticker',
                     progress=False,
-                    threads=False # GitHub Actions IP bloklanmasını önlemek için threads kapatıldı
+                    threads=False 
                 )
                 if not data_chunk.empty:
                     if all_data_15m.empty:
@@ -212,16 +234,16 @@ try:
                 break
             except Exception as e:
                 print(f"Uyarı: Grup indirilemedi (Deneme {deneme+1}/3): {e}")
-                time.sleep(2) # Hata alırsan 2 saniye bekle ve tekrar dene
+                time.sleep(2) 
                 
-        time.sleep(1) # Gruplar arası Yahoo sunucusunu rahatlatmak için kısa bekleme
+        time.sleep(1) 
 
     for ticker_symbol in tqdm(ticker_symbols, desc='Hisseler İşleniyor'):
         ticker = ticker_symbol.replace('.IS', '')
         try:
             df_15m = df_get(all_data_15m, ticker_symbol)
 
-            if df_15m.empty or len(df_15m) < 30:
+            if df_15m.empty or len(df_15m) < 35:
                 continue
 
             # 30 Dakikalık Periyot Oluşturma
@@ -234,22 +256,17 @@ try:
             }).dropna()
 
             def yeni_strateji_filtrele(df):
-                if len(df) < 25:
+                if len(df) < 30:
                     return False, {}
 
                 df = df.copy()
-                df['EMA5'] = df['Close'].ewm(span=5, adjust=False).mean()
-                df['EMA8'] = df['Close'].ewm(span=8, adjust=False).mean()
                 df['SMA20'] = df['Close'].rolling(window=20).mean()
                 df['DI_PLUS'], df['DI_MINUS'] = hesapla_adx_di(df, 14)
                 df['RSI'] = hesapla_rsi(df['Close'], 14)
                 df['OBV'] = hesapla_obv(df)
+                df['SMI'], df['SMI_SIGNAL'] = hesapla_smi(df)
 
                 c_curr = df['Close'].iloc[-1]
-
-                ema5_c, ema5_p = df['EMA5'].iloc[-1], df['EMA5'].iloc[-2]
-                ema8_c, ema8_p = df['EMA8'].iloc[-1], df['EMA8'].iloc[-2]
-                ema_kesisim = (ema5_c > ema8_c) and (ema5_p <= ema8_p)
 
                 sma20_c = df['SMA20'].iloc[-1]
                 fiyat_sma_ustu = c_curr > sma20_c
@@ -265,19 +282,27 @@ try:
                 obv_c, obv_p = df['OBV'].iloc[-1], df['OBV'].iloc[-2]
                 obv_ok = obv_c > obv_p
 
-                tam_uyum = ema_kesisim and fiyat_sma_ustu and di_kesisim and rsi_ok and obv_ok
+                # Stoch Momentum (SMI) Kuralları: -100 ile -40 arası VE yukarı kesişim
+                smi_c = df['SMI'].iloc[-1]
+                smi_sig_c = df['SMI_SIGNAL'].iloc[-1]
+                smi_sig_p = df['SMI_SIGNAL'].iloc[-2]
+                
+                smi_bolge_ok = (-100 <= smi_c <= -40)
+                smi_kesisim = (smi_c > smi_sig_c) and (df['SMI'].iloc[-2] <= smi_sig_p)
+                smi_ok = smi_bolge_ok and smi_kesisim
+
+                tam_uyum = fiyat_sma_ustu and di_kesisim and rsi_ok and obv_ok and smi_ok
 
                 if not tam_uyum:
                     return False, {}
 
                 detaylar = {
                     'Fiyat': c_curr,
-                    'EMA5': ema5_c,
-                    'EMA8': ema8_c,
                     'SMA20': sma20_c,
                     'DI+': di_p_c,
                     'DI-': di_m_c,
                     'RSI': rsi_c,
+                    'SMI': smi_c
                 }
 
                 return True, detaylar
@@ -303,6 +328,7 @@ try:
                         'Son Fiyat': round(son_fiyat, 2),
                         'Periyot': periyot_adi,
                         'RSI': round(detay['RSI'], 2),
+                        'SMI': round(detay['SMI'], 2),
                         'SMA20': round(detay['SMA20'], 2),
                         'Tarih': str(mum_zaman)
                     }
@@ -315,11 +341,11 @@ try:
                             f'*Hisse:* `{ticker}`\n'
                             f'💵 *Fiyat:* `{son_fiyat:.2f}` TL\n'
                             f'📊 *Periyot:* `{periyot_adi}`\n\n'
-                            f'✅ EMA 5 x EMA 8 Yukarı Kesti\n'
                             f'✅ Fiyat > SMA(20) Üstünde (`{detay["SMA20"]:.2f}`)\n'
                             f'✅ DI+ x DI- Yukarı Kesti\n'
                             f'✅ RSI >= 48 ve Artıyor (`{detay["RSI"]:.1f}`)\n'
-                            f'✅ OBV Yönü Yukarı\n\n'
+                            f'✅ OBV Yönü Yukarı\n'
+                            f'✅ *SMI (-100 / -40 Arası ve Yukarı Kesti)* (`{detay["SMI"]:.2f}`)\n\n'
                             f'🔗 [TradingView Grafiği Aç]({tv_link})'
                         )
                         telegram_mesaj_gonder(msg)
